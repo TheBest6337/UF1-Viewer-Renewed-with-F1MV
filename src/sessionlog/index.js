@@ -10,6 +10,7 @@ async function getConfigurations() {
     const logConfig = configFile.session_log;
     const host = networkConfig.host;
     const port = (await f1mvApi.discoverF1MVInstances(host)).port;
+    showLapCount = logConfig.lap_count;
     showLappedDrivers = logConfig.lapped_drivers;
     showRetiredDrivers = logConfig.retired_drivers;
     showRain = logConfig.rain;
@@ -819,7 +820,7 @@ async function run() {
 
         await addSessionStatusLog(time, lap, count);
         await addTrackStatusLog(time, lap, count);
-        if (sessionType === "Race") await addLapCountLog(time, lap, count);
+        if (sessionType === "Race" && showLapCount) await addLapCountLog(time, lap, count);
         if (showRain && weatherData) await addWeatherLog(time, lap, count);
         await addPitlaneLog(time, lap, count);
         if (showRetiredDrivers) await addRetirementLog(time, lap, count);
