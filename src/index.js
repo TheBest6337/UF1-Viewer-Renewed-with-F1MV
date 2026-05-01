@@ -15,6 +15,7 @@ const defaults = {
     network: { host: "localhost" },
     flag_display: { govee: false },
     session_log: {
+      lap_count: true,
       lapped_drivers: true,
       retired_drivers: true,
       rain: true,
@@ -311,6 +312,10 @@ const store = new Store({
 
   defaults: defaults,
 });
+
+if (store.get("config.session_log.lap_count") === undefined) {
+  store.set("config.session_log.lap_count", true);
+}
 
 const sleep = (milliseconds) => {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
