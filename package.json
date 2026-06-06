@@ -1,8 +1,8 @@
 {
-  "name": "uf1",
-  "productName": "Ultimate-F1Viewer-With-F1MV",
+  "name": "uf1-renewed",
+  "productName": "UF1-Viewer-Renewed",
   "version": "1.4.8",
-  "description": "A integration with multiple windows to enchance your F1TV experience using the MultiViewer for F1 app.",
+  "description": "A renewed fork of UF1 — native Apple Silicon (ARM64) support with updated dependencies. Enhances your F1TV experience using the MultiViewer for F1 app.",
   "main": "./src/index.js",
   "scripts": {
     "start": "electron .",
@@ -13,7 +13,7 @@
   },
   "keywords": [],
   "author": "TheBest6337",
-  "contributors": ["MRAJEKO (original author)"],
+  "contributors": ["MRAJEKO (original author, inactive)"],
   "license": "MIT",
   "dependencies": {
     "@nivo/bullet": "^0.99.0",

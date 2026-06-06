@@ -1,20 +1,32 @@
 <br />
 <div align="center">
-  <a href="https://github.com/TheBest6337/UF1-Viewer-with-F1MV">
+  <a href="https://github.com/MRAJEKO/UF1-Viewer-with-F1MV">
     <img src="src/icons/windows/logo.png" alt="Logo" width="200" height="200">
   </a>
 
-<h2 align="center">Ultimate Formula 1 Viewer</h2>
+<h2 align="center">UF1 Viewer — Renewed</h2>
     <h3>Using <a href="https://muvi.gg/">MultiViewer for F1</a></h3>
 
 </div>
+
+> **This is a renewed fork.** The original author ([MRAJEKO](https://github.com/MRAJEKO)) is no longer actively contributing to this project.
+>
+> This fork exists because **Apple is phasing out Rosetta 2** (Intel emulation on Apple Silicon), and the original app had no native ARM64 support for macOS. Without native ARM support, the app would eventually stop working on all modern Macs.
+>
+> **What's changed:**
+> - **Native Apple Silicon (ARM64) support** — built and tested on ARM Macs
+> - **All dependencies updated** to their latest versions (Electron, electron-builder, npm_f1mv_api, etc.)
+> - **macOS-native packaging** with proper ARM64 `.dmg` artifacts
+> - **Package vulnerabilities fixed** — the 3-year-old original had accumulated known security issues in outdated dependencies; all are now resolved
+> - **Actively maintained** — new features may be added if there's community interest
+
 <br />
 <br />
 <br />
 
 # Information
 
-## What is Ultimate Formula 1 Viewer (UF1)?
+## What is UF1 Viewer — Renewed?
 
 This app is a integration on <a href="https://muvi.gg/">MultiViewer for F1</a>. It adds a lot of visuals and information windows using the MultiViewer API. It is mainly build for personal use but is now open source for everyone to use. The goal of is to make watching Formula 1 more enjoyable and easier to follow. The app is focused on showing information that really helps you understand what is going on the session. A lot of status information, changes in the session and automatic switching between the most important stuff happening on track.
 
@@ -36,7 +48,7 @@ Open the file you just downloaded and follow all the steps in the prompt. These 
 
 ## Running
 
-After the installation is complete you can run the application by opening the start menu and searching for '**Ultimate-F1Viewer-With-F1MV**' or by opening the folder where you installed it and opening the executable file.
+After the installation is complete you can run the application by opening the start menu and searching for '**UF1-Viewer-Renewed**' or by opening the folder where you installed it and opening the executable file.
 
 <br>
 <br>
@@ -125,7 +137,7 @@ Pressing this button will open the live timing page if there is a live session. 
 
 <br>
 
-## Ultimate Formula 1 Viewer (UF1) Windows
+## UF1 Viewer — Renewed Windows
 
 ### **'Flag Display'**
 

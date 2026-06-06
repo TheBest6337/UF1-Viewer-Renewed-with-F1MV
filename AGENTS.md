@@ -1,10 +1,12 @@
-# AGENTS.md — Ultimate Formula 1 Viewer (UF1)
+# AGENTS.md — UF1 Viewer Renewed
 
 > AI coding agents: read this before making changes.
 
 ## Project overview
 
-UF1 is an **Electron 22** desktop app that extends [MultiViewer for F1](https://muvi.gg/) with additional overlay windows showing live race data (lap times, track status, weather, tire stats, etc.). It uses the MultiViewer API (`npm_f1mv_api`) to fetch live F1 timing data.
+UF1 Viewer Renewed is a fork of the original [UF1-Viewer-with-F1MV](https://github.com/MRAJEKO/UF1-Viewer-with-F1MV). It is an **Electron** desktop app that extends [MultiViewer for F1](https://muvi.gg/) with additional overlay windows showing live race data (lap times, track status, weather, tire stats, etc.). It uses the MultiViewer API (`npm_f1mv_api`) to fetch live F1 timing data.
+
+> **Why this fork exists:** Apple is phasing out Rosetta 2 (Intel emulation on Apple Silicon). The original app had no native ARM64 support for macOS. This fork adds native Apple Silicon (ARM64) support, updates all dependencies, and provides proper macOS-native packaging. The original author (MRAJEKO/TheBest6337) is no longer actively contributing.
 
 - **Entry point:** `src/index.js` (Electron main process)
 - **Language:** Pure JavaScript (no TypeScript)
