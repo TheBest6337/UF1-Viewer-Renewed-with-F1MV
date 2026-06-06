@@ -1,7 +1,7 @@
 {
   "name": "uf1-renewed",
   "productName": "UF1-Viewer-Renewed",
-  "version": "1.4.8",
+  "version": "2.0.0",
   "description": "A renewed fork of UF1 — native Apple Silicon (ARM64) support with updated dependencies. Enhances your F1TV experience using the MultiViewer for F1 app.",
   "main": "./src/index.js",
   "scripts": {
