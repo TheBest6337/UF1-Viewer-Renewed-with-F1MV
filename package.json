@@ -46,8 +46,8 @@
     }
   },
   "dependencies": {
-    "@nivo/bullet": "^0.80.0",
-    "@nivo/line": "^0.80.0",
+    "@nivo/bullet": "^0.99.0",
+    "@nivo/line": "^0.99.0",
     "adm-zip": "^0.5.9",
     "discord-rpc": "^4.0.1",
     "electron-fetch": "^1.9.1",
