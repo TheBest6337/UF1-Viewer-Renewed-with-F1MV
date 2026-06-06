@@ -46,6 +46,18 @@ Open the latest release page and download the, for your OS compatible, version o
 
 Open the file you just downloaded and follow all the steps in the prompt. These windows will guide you through the installation process.
 
+## macOS: "App is damaged" error
+
+If macOS shows **"UF1-Viewer-Renewed is damaged and can't be opened"**, this is a Gatekeeper quarantine issue caused by the app not being notarized by Apple. Run this command in Terminal after mounting the DMG or installing the app:
+
+```bash
+xattr -cr "/Applications/UF1-Viewer-Renewed.app"
+```
+
+Then try opening the app again. You only need to do this once.
+
+> **Want a proper fix?** Eliminating this warning permanently requires an Apple Developer Program membership ($99/year) for code signing and notarization. If you'd like to support that, any contribution helps — see the [Sponsors](https://github.com/sponsors/TheBest6337) section.
+
 ## Running
 
 After the installation is complete you can run the application by opening the start menu and searching for '**UF1-Viewer-Renewed**' or by opening the folder where you installed it and opening the executable file.
