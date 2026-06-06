@@ -4,7 +4,6 @@ const { ipcRenderer } = require("electron");
 const debug = false;
 
 const f1mvApi = require("npm_f1mv_api");
-const { get } = require("request");
 
 async function getConfigurations(host, port, file) {
     config = {

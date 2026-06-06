@@ -22,13 +22,14 @@ win:
 
 mac:
     category: "public.app-category.utilities"
-    minimumSystemVersion: "10.12.0"
+    minimumSystemVersion: "11.0.0"
     icon: "src/icons/windows/logo.png"
     target:
         - target: "dmg"
           arch:
               - x64
               - arm64
+    artifactName: "${productName}-${version}-mac-${arch}.${ext}"
 
 linux:
     icon: "src/icons/windows/logo.png"
