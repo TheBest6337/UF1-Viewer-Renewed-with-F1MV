@@ -12,7 +12,8 @@
     "dist": "electron-builder"
   },
   "keywords": [],
-  "author": "MR. AJEKO",
+  "author": "TheBest6337",
+  "contributors": ["MRAJEKO (original author)"],
   "license": "MIT",
   "dependencies": {
     "@nivo/bullet": "^0.99.0",

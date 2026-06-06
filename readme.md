@@ -1,6 +1,6 @@
 <br />
 <div align="center">
-  <a href="https://github.com/MRAJEKO/UF1-Viewer-with-F1MV">
+  <a href="https://github.com/TheBest6337/UF1-Viewer-with-F1MV">
     <img src="src/icons/windows/logo.png" alt="Logo" width="200" height="200">
   </a>
 
@@ -28,7 +28,7 @@ This app is a integration on <a href="https://muvi.gg/">MultiViewer for F1</a>. 
 
 Open the latest release page and download the, for your OS compatible, version of UF1
 
-> https://github.com/MRAJEKO/UF1-Viewer-with-F1MV/releases/latest
+> https://github.com/TheBest6337/UF1-Viewer-with-F1MV/releases/latest
 
 ## Installation
 
