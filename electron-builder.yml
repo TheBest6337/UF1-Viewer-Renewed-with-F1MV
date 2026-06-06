@@ -2,7 +2,7 @@ productName: "UF1-Viewer-Renewed"
 appId: "com.thebest6337.uf1-renewed"
 copyright: "Copyright © 2023 MRAJEKO, 2026 TheBest6337"
 
-generateUpdatesFilesForAllChannels: true
+generateUpdatesFilesForAllChannels: false
 asar: true
 
 npmRebuild: false
