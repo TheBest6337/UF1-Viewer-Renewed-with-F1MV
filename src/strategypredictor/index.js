@@ -16,6 +16,10 @@ let predictedWindows = {};
 
 let undercutThreats = [];
 
+var oldPitstops = [];
+
+var justPittedDrivers = {};
+
 let avgPitLoss = 22.5;
 
 let degRates = {};
@@ -320,14 +324,8 @@ function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battle
     const threatLapThreshold = getDriverConfig("threatLapThreshold", 3);
     const tireAgeRatio = stintAge / compoundLife;
 
-    if (!driverHistory[driverNum]) driverHistory[driverNum] = {};
-    var prevStintAge = driverHistory[driverNum].prevStintAge;
-    driverHistory[driverNum].prevStintAge = stintAge;
-
-    var justPitted = false;
-    if (stintAge <= 2) {
-        justPitted = true;
-    } else if (prevStintAge !== undefined && prevStintAge > 3 && stintAge <= 3) {
+    var justPitted = driverJustPitted(driverNum);
+    if (!justPitted && stintAge <= 2) {
         justPitted = true;
     }
 
@@ -558,6 +556,38 @@ function accumulateData(driverNum, timingData, timingAppLines, currentLap) {
 function getAllStints(timingAppLines, driverNum) {
     if (!timingAppLines || !timingAppLines[driverNum]) return null;
     return timingAppLines[driverNum].Stints || null;
+}
+
+function detectPitStops(pitTimes, timingAppLines, currentLap) {
+    if (!pitTimes || !timingAppLines) return;
+
+    for (var driverNum in pitTimes) {
+        var driverPitInfo = pitTimes[driverNum];
+        var pitstopString = JSON.stringify(driverPitInfo);
+
+        if (oldPitstops.indexOf(pitstopString) !== -1) continue;
+
+        oldPitstops.push(pitstopString);
+
+        var stints = getAllStints(timingAppLines, driverNum);
+        if (!stints || stints.length < 2) continue;
+
+        var lastStint = stints[stints.length - 1];
+
+        if (lastStint.StartLaps === lastStint.TotalLaps) {
+            justPittedDrivers[driverNum] = currentLap;
+        }
+    }
+
+    for (var driverNum in justPittedDrivers) {
+        if (currentLap - justPittedDrivers[driverNum] > 3) {
+            delete justPittedDrivers[driverNum];
+        }
+    }
+}
+
+function driverJustPitted(driverNum) {
+    return justPittedDrivers[driverNum] !== undefined;
 }
 
 function computeAll(driverListLines, timingDataLines, timingAppLines, timingStatsLines, currentLap, totalLaps, extrapolatedClock, trackStatus) {
@@ -1162,6 +1192,8 @@ async function run() {
                     const sum = pitTimesArray.reduce(function (s, pt) { return s + (pt.Duration || 0); }, 0);
                     avgPitLoss = sum / pitTimesArray.length;
                 }
+
+                detectPitStops(pitLaneTimes.PitTimes, timingAppLines, currentLap);
             }
 
             computeAll(
