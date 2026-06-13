@@ -10,6 +10,8 @@ const { getColorFromStatusCodeOrName } = require("../functions/colors.js");
 
 const { parseLapOrSectorTime } = require("../functions/times.js");
 
+const { logLap } = require("./strategy-log.js");
+
 let driverHistory = {};
 
 let predictedWindows = {};
@@ -19,6 +21,8 @@ let undercutThreats = [];
 var oldPitstops = [];
 
 var justPittedDrivers = {};
+
+var previousCompounds = {};
 
 let avgPitLoss = 22.5;
 
@@ -97,6 +101,8 @@ async function apiRequests() {
             "ExtrapolatedClock",
             "WeatherData",
             "PitLaneTimeCollection",
+            "CarData",
+            "SessionStatus",
         ]);
 
         return liveTimingState;
@@ -319,13 +325,12 @@ function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battle
     const currentStint = stintData[stintData.length - 1];
     const compound = currentStint.Compound || "SOFT";
     const compoundLife = getCompoundLife(compound);
-    const stintStartLap = currentStint.StartLaps || 1;
-    const stintAge = currentLap - stintStartLap;
+    const stintAge = currentStint.TotalLaps != null ? currentStint.TotalLaps : 0;
     const threatLapThreshold = getDriverConfig("threatLapThreshold", 3);
     const tireAgeRatio = stintAge / compoundLife;
 
     var justPitted = driverJustPitted(driverNum);
-    if (!justPitted && stintAge <= 2) {
+    if (!justPitted && stintAge <= 4) {
         justPitted = true;
     }
 
@@ -354,9 +359,11 @@ function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battle
 
     var adjustedDeg = degRate;
 
-    if (adjustedDeg === null || adjustedDeg === undefined) {
-        if (teammateDeg !== null && teammateDeg !== undefined) {
-            adjustedDeg = teammateDeg;
+    if (stintAge >= 5) {
+        if (adjustedDeg === null || adjustedDeg === undefined) {
+            if (teammateDeg !== null && teammateDeg !== undefined) {
+                adjustedDeg = teammateDeg;
+            }
         }
     }
 
@@ -527,14 +534,19 @@ function handleSCVSC(trackStatus) {
     let mode = "normal";
     let message = "";
 
+    const validPitLoss = !isNaN(avgPitLoss) && avgPitLoss > 0;
     switch (statusNum) {
         case 4:
             mode = "sc";
-            message = "SAFETY CAR DEPLOYED — Pit loss ~" + (avgPitLoss * 0.55).toFixed(1) + "s (save ~" + (avgPitLoss - avgPitLoss * 0.55).toFixed(1) + "s)";
+            message = validPitLoss
+                ? "SAFETY CAR DEPLOYED — Pit loss ~" + (avgPitLoss * 0.55).toFixed(1) + "s (save ~" + (avgPitLoss - avgPitLoss * 0.55).toFixed(1) + "s)"
+                : "SAFETY CAR DEPLOYED — Pit loss: calculating...";
             break;
         case 6:
             mode = "vsc";
-            message = "VIRTUAL SAFETY CAR DEPLOYED — Pit loss ~" + (avgPitLoss * 0.55).toFixed(1) + "s (save ~" + (avgPitLoss - avgPitLoss * 0.55).toFixed(1) + "s)";
+            message = validPitLoss
+                ? "VIRTUAL SAFETY CAR DEPLOYED — Pit loss ~" + (avgPitLoss * 0.55).toFixed(1) + "s (save ~" + (avgPitLoss - avgPitLoss * 0.55).toFixed(1) + "s)"
+                : "VIRTUAL SAFETY CAR DEPLOYED — Pit loss: calculating...";
             break;
         case 7:
             mode = "vsc_ending";
@@ -567,20 +579,19 @@ function detectPitStops(pitTimes, timingAppLines, currentLap) {
 
         if (oldPitstops.indexOf(pitstopString) !== -1) continue;
 
-        oldPitstops.push(pitstopString);
-
         var stints = getAllStints(timingAppLines, driverNum);
         if (!stints || stints.length < 2) continue;
 
         var lastStint = stints[stints.length - 1];
 
         if (lastStint.StartLaps === lastStint.TotalLaps) {
+            oldPitstops.push(pitstopString);
             justPittedDrivers[driverNum] = currentLap;
         }
     }
 
     for (var driverNum in justPittedDrivers) {
-        if (currentLap - justPittedDrivers[driverNum] > 3) {
+        if (currentLap - justPittedDrivers[driverNum] > 4) {
             delete justPittedDrivers[driverNum];
         }
     }
@@ -679,6 +690,18 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
         if (stints && stints.length > 0) {
             compoundKey = stints[stints.length - 1].Compound || "---";
         }
+
+        if (compoundKey !== "---" && previousCompounds[driverNum] && previousCompounds[driverNum] !== compoundKey && !justPittedDrivers[driverNum]) {
+            justPittedDrivers[driverNum] = currentLap;
+            if (driverHistory[driverNum]) {
+                driverHistory[driverNum].laps = [];
+                driverHistory[driverNum].segmentScores = [];
+                driverHistory[driverNum].positions = [];
+                driverHistory[driverNum].dirtyAirHistory = [];
+                driverHistory[driverNum].degRate = null;
+            }
+        }
+        previousCompounds[driverNum] = compoundKey;
 
         var teammateNum = teammateMap[driverNum];
         var teammateDeg = null;
@@ -976,8 +999,7 @@ function renderSCVSC(driverListLines, timingDataLines, timingAppLines, currentLa
         const currentStint = stintData[stintData.length - 1];
         const compound = currentStint.Compound || "SOFT";
         const compoundLife = getCompoundLife(compound);
-        const stintStartLap = currentStint.StartLaps || 1;
-        const stintAge = currentLap - stintStartLap;
+        const stintAge = currentStint.TotalLaps != null ? currentStint.TotalLaps : 0;
         const tireUsage = compoundLife > 0 ? stintAge / compoundLife : 0;
 
         let expectedLabel = "";
@@ -1043,7 +1065,9 @@ function render(driverListLines, timingDataLines, timingAppLines, currentLap, to
     if (!driverListLines) return;
 
     document.getElementById("lap-counter").textContent = "Lap " + currentLap + "/" + totalLaps;
-    document.getElementById("pit-loss").textContent = "Pit Loss: " + avgPitLoss.toFixed(1) + "s (SC: ~" + (avgPitLoss * 0.55).toFixed(1) + "s)";
+    document.getElementById("pit-loss").textContent = (!isNaN(avgPitLoss) && avgPitLoss > 0)
+        ? "Pit Loss: " + avgPitLoss.toFixed(1) + "s (SC: ~" + (avgPitLoss * 0.55).toFixed(1) + "s)"
+        : "Pit Loss: calculating...";
     document.getElementById("race-end").textContent = "Race End: ~Lap " + totalLaps;
 
     const compoundRefDeg = calcCompoundRefDeg(degRates, compoundCounts);
@@ -1106,6 +1130,8 @@ async function run() {
             const extrapolatedClock = state.ExtrapolatedClock;
             const weatherData = state.WeatherData;
             const pitLaneTimes = state.PitLaneTimeCollection;
+            const carData = state.CarData || null;
+            const sessionStatus = state.SessionStatus ? state.SessionStatus.Status : null;
 
             if (lapCount) {
                 lastTrackStatus = trackStatus || "1";
@@ -1151,8 +1177,8 @@ async function run() {
                         const teamHex = driverInfo.TeamColour ? "#" + driverInfo.TeamColour : "#5b5b5d";
                         const position = parseInt(driverTiming.Position);
                         const compoundLife = getCompoundLife(compound);
-                        const stintStartLap = (stintData && stintData.length > 0) ? stintData[stintData.length - 1].StartLaps : 0;
-                        const stintAge = currentLap - stintStartLap;
+                        const stintAge = (stintData && stintData.length > 0) ? (stintData[stintData.length - 1].TotalLaps || 0) : 0;
+                        const stintStartLap = currentLap - stintAge;
                         const expectedRange = "Lap " + (stintStartLap + compoundLife - 3) + "-" + (stintStartLap + compoundLife + 3);
 
                         const tr = document.createElement("tr");
@@ -1166,6 +1192,28 @@ async function run() {
                     }
                 }
                 document.getElementById("lap-counter").textContent = "Lap " + currentLap + "/" + totalLaps;
+
+                logLap({
+                    currentLap: currentLap,
+                    totalLaps: totalLaps,
+                    trackStatus: trackStatus,
+                    avgPitLoss: avgPitLoss,
+                    weatherData: weatherData || { Rainfall: 0 },
+                    driverListLines: driverListLines,
+                    timingDataLines: timingDataLines,
+                    timingAppLines: timingAppLines,
+                    predictedWindows: predictedWindows,
+                    driverHistory: driverHistory,
+                    justPittedDrivers: justPittedDrivers,
+                    degRates: degRates,
+                    compoundCounts: compoundCounts,
+                    configData: configData,
+                    carData: carData,
+                    sessionStatus: sessionStatus,
+                    sessionType: sessionType,
+                    lapCount: lapCount,
+                });
+
                 return;
             }
 
@@ -1188,9 +1236,12 @@ async function run() {
 
             if (pitLaneTimes && pitLaneTimes.PitTimes) {
                 const pitTimesArray = Object.values(pitLaneTimes.PitTimes);
-                if (pitTimesArray.length > 0) {
-                    const sum = pitTimesArray.reduce(function (s, pt) { return s + (pt.Duration || 0); }, 0);
-                    avgPitLoss = sum / pitTimesArray.length;
+                const validTimes = pitTimesArray.filter(function (pt) {
+                    var d = Number(pt.Duration);
+                    return !isNaN(d) && d > 0;
+                });
+                if (validTimes.length > 0) {
+                    avgPitLoss = validTimes.reduce(function (s, pt) { return s + Number(pt.Duration); }, 0) / validTimes.length;
                 }
 
                 detectPitStops(pitLaneTimes.PitTimes, timingAppLines, currentLap);
@@ -1217,6 +1268,28 @@ async function run() {
                 extrapolatedClock,
                 weatherData
             );
+
+            logLap({
+                currentLap: currentLap,
+                totalLaps: totalLaps,
+                trackStatus: trackStatus,
+                avgPitLoss: avgPitLoss,
+                weatherData: weatherData || { Rainfall: 0 },
+                driverListLines: driverListLines,
+                timingDataLines: timingDataLines,
+                timingAppLines: timingAppLines,
+                predictedWindows: predictedWindows,
+                driverHistory: driverHistory,
+                justPittedDrivers: justPittedDrivers,
+                degRates: degRates,
+                compoundCounts: compoundCounts,
+                configData: configData,
+                pitLaneTimes: pitLaneTimes,
+                carData: carData,
+                sessionStatus: sessionStatus,
+                sessionType: sessionType,
+                lapCount: lapCount,
+            });
 
             if (debug) {
                 console.log("session:", sessionType);
