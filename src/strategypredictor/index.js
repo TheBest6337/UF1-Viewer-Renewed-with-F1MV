@@ -29,8 +29,10 @@ let avgPitLoss = 22.5;
 let degRates = {};
 
 let compoundCounts = {};
+let compoundExtensionData = {}; // tracks how far each compound is running past its nominal life
 
 let lastTrackStatus = "1";
+let lastSCExitLap = -99;
 
 let lastRainfall = 0;
 let prevRainfall = 0;
@@ -207,7 +209,7 @@ function calcDegRate(driverNum, currentLap, sessionData) {
 
     const isInPit = driverTiming.InPit;
     const isOutLap = driverTiming.Sectors && driverTiming.Sectors[0] && driverTiming.Sectors[0].Segments && driverTiming.Sectors[0].Segments[0] && driverTiming.Sectors[0].Segments[0].Status === 2064;
-    const isSCLap = lastTrackStatus === "4" || lastTrackStatus === "6";
+    const isSCLap = lastTrackStatus === "4" || lastTrackStatus === "6" || currentLap <= lastSCExitLap + 1;
 
     const history = driverHistory[driverNum].laps;
     const alreadyRecorded = history.some(function (entry) { return entry.lap === currentLap; });
@@ -392,13 +394,44 @@ function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battle
         }
     }
 
-    var remainingCleanLaps = effectiveLife - stintAge;
-
-    if (battlePenalty > 0 && getDriverConfig("battleDegEnabled", true)) {
-        remainingCleanLaps -= battlePenalty * remainingCleanLaps;
+    // When tire outlives prediction with flat/neg deg, roll the window forward dynamically
+    if ((adjustedDeg === null || adjustedDeg <= 0.02) && stintAge > effectiveLife * 0.9) {
+        effectiveLife = stintAge + 5;
     }
 
-    var lapsLeft = Math.max(0, remainingCleanLaps);
+    // Cross-compound extension: if any compound ran X% longer than nominal, propagate
+    // to others — each compound step away halves the boost in both directions.
+    // e.g. SOFT +50% → MEDIUM +25%, HARD +12.5%; MEDIUM +50% → SOFT +25%, HARD +25%
+    var compoundOrder = ['SOFT', 'MEDIUM', 'HARD', 'INTERMEDIATE', 'WET'];
+    var myCompoundIdx = compoundOrder.indexOf(compound);
+    if (myCompoundIdx >= 0) {
+        var bestBoost = 0;
+        var bestDistance = Infinity;
+        for (var _ci = 0; _ci < compoundOrder.length; _ci++) {
+            if (_ci === myCompoundIdx) continue;
+            var otherComp = compoundOrder[_ci];
+            var extData = compoundExtensionData[otherComp];
+            if (extData && extData.count >= 2) {
+                var avgExtRatio = extData.sum / extData.count;
+                var steps = Math.abs(myCompoundIdx - _ci);
+                var crossBoost = (avgExtRatio - 1) * Math.pow(0.5, steps);
+                if (crossBoost > 0 && steps < bestDistance) {
+                    bestBoost = crossBoost;
+                    bestDistance = steps;
+                }
+            }
+        }
+        if (bestBoost > 0) {
+            effectiveLife = Math.max(effectiveLife, compoundLife * (1 + bestBoost));
+        }
+    }
+
+    var remainingCleanLaps = effectiveLife - stintAge;
+    var lapsLeft = remainingCleanLaps; // allow negative — used for urgency threshold
+
+    if (battlePenalty > 0 && lapsLeft > 0 && getDriverConfig("battleDegEnabled", true)) {
+        lapsLeft -= battlePenalty * lapsLeft;
+    }
 
     if (tireAgeRatio > 0.85) {
         if (lapsLeft > threatLapThreshold) {
@@ -410,10 +443,6 @@ function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battle
         lapsLeft = Math.max(lapsLeft, threatLapThreshold + 1);
     }
 
-    var urgency = 0;
-    if (lapsLeft <= 0) urgency = 2;
-    else if (lapsLeft <= threatLapThreshold) urgency = 1;
-
     var extended = false;
     if (health && health.score >= 3 && degRate !== null && degRate <= 0) {
         lapsLeft += 5;
@@ -422,8 +451,13 @@ function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battle
 
     const safetyMargin = 3;
     const overstayMargin = 3;
+    // urgency=1 at window START (lapsLeft <= safetyMargin), urgency=2 at window END (past overstay)
+    var urgency = 0;
+    if (lapsLeft <= -overstayMargin) urgency = 2;
+    else if (lapsLeft <= safetyMargin) urgency = 1;
+
     const minPitLap = Math.max(currentLap + 1, Math.round(currentLap + lapsLeft - safetyMargin));
-    const maxPitLap = Math.round(currentLap + lapsLeft + overstayMargin);
+    const maxPitLap = Math.max(currentLap + 1, Math.round(currentLap + Math.max(0, lapsLeft) + overstayMargin));
 
     return {
         compound: compound,
@@ -432,7 +466,7 @@ function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battle
         maxLap: maxPitLap,
         urgency: urgency,
         extended: extended,
-        lapsLeft: lapsLeft,
+        lapsLeft: Math.max(0, lapsLeft),
         compoundLife: compoundLife,
         effectiveLife: effectiveLife,
         tireAgeRatio: tireAgeRatio,
@@ -673,6 +707,24 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
     for (var comp in newCounts) {
         if (newCounts[comp] > 0) {
             compoundAvgDegMap[comp] = newDegRates[comp] / newCounts[comp];
+        }
+    }
+
+    // Collect cross-compound extension observations: which compounds are running past nominal life with flat/neg deg?
+    compoundExtensionData = {};
+    for (var _dn in allDegRates) {
+        var _stints = getAllStints(timingAppLines, _dn);
+        if (!_stints || _stints.length === 0) continue;
+        var _stint = _stints[_stints.length - 1];
+        var _comp = _stint.Compound || "---";
+        if (_comp === "---") continue;
+        var _age = _stint.TotalLaps != null ? _stint.TotalLaps : 0;
+        var _nomLife = getCompoundLife(_comp);
+        var _deg = allDegRates[_dn] ? allDegRates[_dn].deg : null;
+        if (_age >= _nomLife && (_deg === null || _deg <= 0.02)) {
+            if (!compoundExtensionData[_comp]) compoundExtensionData[_comp] = { sum: 0, count: 0 };
+            compoundExtensionData[_comp].sum += _age / _nomLife;
+            compoundExtensionData[_comp].count++;
         }
     }
 
@@ -1134,6 +1186,14 @@ async function run() {
             const sessionStatus = state.SessionStatus ? state.SessionStatus.Status : null;
 
             if (lapCount) {
+                const wasSCVSC = lastTrackStatus === "4" || lastTrackStatus === "6";
+                const nowGreen = !trackStatus || trackStatus === "1" || trackStatus === "2" || trackStatus === "7";
+                if (wasSCVSC && nowGreen) {
+                    lastSCExitLap = currentLap;
+                    for (var _d in driverHistory) {
+                        if (driverHistory[_d]) driverHistory[_d].laps = [];
+                    }
+                }
                 lastTrackStatus = trackStatus || "1";
             }
 
