@@ -309,7 +309,7 @@ function detectBattles(driverNum, timingDataLines, currentLap) {
     return { fighting: fighting, dirtyAir: dirtyAir, pushing: pushing, penalty: penalty };
 }
 
-function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battlePenalty) {
+function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battlePenalty, compoundAvgDeg, teammateDeg) {
     if (!stintData || stintData.length === 0) return null;
 
     const currentStint = stintData[stintData.length - 1];
@@ -318,29 +318,98 @@ function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battle
     const stintStartLap = currentStint.StartLaps || 1;
     const stintAge = currentLap - stintStartLap;
     const threatLapThreshold = getDriverConfig("threatLapThreshold", 3);
+    const tireAgeRatio = stintAge / compoundLife;
 
-    let effectiveLife = compoundLife;
+    if (!driverHistory[driverNum]) driverHistory[driverNum] = {};
+    var prevStintAge = driverHistory[driverNum].prevStintAge;
+    driverHistory[driverNum].prevStintAge = stintAge;
 
-    if (degRate !== null && degRate !== undefined) {
-        if (degRate > 0.02) {
-            effectiveLife = Math.min(compoundLife, compoundLife * (0.04 / degRate));
-        } else if (degRate <= 0) {
-            effectiveLife = compoundLife * 1.3;
+    var justPitted = false;
+    if (stintAge <= 2) {
+        justPitted = true;
+    } else if (prevStintAge !== undefined && prevStintAge > 3 && stintAge <= 3) {
+        justPitted = true;
+    }
+
+    if (justPitted) {
+        if (driverHistory[driverNum]) {
+            driverHistory[driverNum].laps = [];
+            driverHistory[driverNum].segmentScores = [];
+            driverHistory[driverNum].positions = [];
+            driverHistory[driverNum].dirtyAirHistory = [];
+            driverHistory[driverNum].degRate = null;
+        }
+        return {
+            compound: compound,
+            stintAge: stintAge,
+            minLap: Math.round(currentLap + compoundLife - 3),
+            maxLap: Math.round(currentLap + compoundLife + 3),
+            urgency: 0,
+            extended: false,
+            lapsLeft: compoundLife,
+            compoundLife: compoundLife,
+            effectiveLife: compoundLife,
+            justPitted: true,
+            tireAgeRatio: tireAgeRatio,
+        };
+    }
+
+    var adjustedDeg = degRate;
+
+    if (adjustedDeg === null || adjustedDeg === undefined) {
+        if (teammateDeg !== null && teammateDeg !== undefined) {
+            adjustedDeg = teammateDeg;
         }
     }
 
-    let remainingCleanLaps = effectiveLife - stintAge;
-    if (battlePenalty > 0 && getDriverConfig("battleDegEnabled", true)) {
-        remainingCleanLaps -= battlePenalty * 30 * remainingCleanLaps;
+    if (adjustedDeg !== null && adjustedDeg !== undefined && compoundAvgDeg !== null && compoundAvgDeg !== undefined) {
+        var compoundCount = compoundCounts[compound] || 0;
+
+        if (compoundCount >= 3 && compoundAvgDeg > 0.005 && adjustedDeg > compoundAvgDeg * 2.0 && adjustedDeg > 0.05) {
+            adjustedDeg = compoundAvgDeg * 1.5;
+        }
+
+        if (adjustedDeg < 0 && compoundAvgDeg > 0.03) {
+            adjustedDeg = compoundAvgDeg;
+        }
     }
 
-    let lapsLeft = Math.max(0, remainingCleanLaps);
+    var effectiveLife = compoundLife;
+    if (adjustedDeg !== null && adjustedDeg !== undefined) {
+        if (adjustedDeg > 0.10) {
+            var reduction = Math.min(0.55, (adjustedDeg - 0.10) * 4.0);
+            effectiveLife = compoundLife * (1 - reduction);
+        } else if (adjustedDeg > 0.05) {
+            var reduction = (adjustedDeg - 0.05) * 2.0;
+            effectiveLife = compoundLife * (1 - reduction);
+        } else if (adjustedDeg <= 0) {
+            effectiveLife = compoundLife * 1.2;
+        }
+    }
 
-    let urgency = 0;
+    var remainingCleanLaps = effectiveLife - stintAge;
+
+    if (battlePenalty > 0 && getDriverConfig("battleDegEnabled", true)) {
+        remainingCleanLaps -= battlePenalty * remainingCleanLaps;
+    }
+
+    var lapsLeft = Math.max(0, remainingCleanLaps);
+
+    if (tireAgeRatio > 0.85) {
+        if (lapsLeft > threatLapThreshold) {
+            lapsLeft = threatLapThreshold;
+        }
+    }
+
+    if (tireAgeRatio < 0.30 && lapsLeft > threatLapThreshold && (adjustedDeg === null || adjustedDeg <= 0.03)) {
+        lapsLeft = Math.max(lapsLeft, threatLapThreshold + 1);
+    }
+
+    var urgency = 0;
     if (lapsLeft <= 0) urgency = 2;
     else if (lapsLeft <= threatLapThreshold) urgency = 1;
 
-    let extended = false;
+    var extended = false;
     if (health && health.score >= 3 && degRate !== null && degRate <= 0) {
         lapsLeft += 5;
         extended = true;
@@ -354,13 +423,16 @@ function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battle
     return {
         compound: compound,
         stintAge: stintAge,
-        minLap: Math.max(currentLap + 1, minPitLap),
+        minLap: minPitLap,
         maxLap: maxPitLap,
         urgency: urgency,
         extended: extended,
         lapsLeft: lapsLeft,
         compoundLife: compoundLife,
         effectiveLife: effectiveLife,
+        tireAgeRatio: tireAgeRatio,
+        adjustedDeg: adjustedDeg,
+        originalDeg: degRate,
     };
 }
 
@@ -420,7 +492,7 @@ function calcTeamDeg(driverListLines) {
         const teamAvgDeg = validRates.reduce(function (s, r) { return s + r; }, 0) / validRates.length;
 
         let flaggedPair = null;
-        if (validRates.length === 2 && Math.abs(validRates[0] - validRates[1]) > 0.05) {
+        if (validRates.length === 2 && Math.abs(validRates[0] - validRates[1]) > 0.10) {
             flaggedPair = {
                 driver1: drivers[0],
                 driver2: drivers[1],
@@ -504,42 +576,95 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
     }
     currentPositionOrder.sort(function (a, b) { return a.pos - b.pos; });
 
-    const newDegRates = {};
-    const newCounts = {};
-    const newPredictedWindows = {};
+    var newDegRates = {};
+    var newCounts = {};
+    var newPredictedWindows = {};
+    var allDegRates = {};
 
-    for (const driverNum in driverListLines) {
-        const driverTiming = timingDataLines[driverNum];
+    var teammateMap = {};
+    var teamDrivers = {};
+    for (var dn in driverListLines) {
+        var dInfo = driverListLines[dn];
+        var tName = dInfo.TeamName;
+        if (!teamDrivers[tName]) teamDrivers[tName] = [];
+        teamDrivers[tName].push(dn);
+    }
+    for (var tName in teamDrivers) {
+        var drivers = teamDrivers[tName];
+        if (drivers.length === 2) {
+            teammateMap[drivers[0]] = drivers[1];
+            teammateMap[drivers[1]] = drivers[0];
+        }
+    }
 
+    for (var driverNum in driverListLines) {
+        var driverTiming = timingDataLines[driverNum];
         if (!driverTiming || driverTiming.Retired || driverTiming.Stopped) continue;
 
-        const stints = getAllStints(timingAppLines, driverNum);
-
+        var stints = getAllStints(timingAppLines, driverNum);
         accumulateData(driverNum, driverTiming, timingAppLines, currentLap);
-
-        const health = calcSectorHealth(driverNum, timingDataLines, currentLap);
-
-        const sessionData = { TimingData: { Lines: timingDataLines } };
-        const degRate = calcDegRate(driverNum, currentLap, sessionData);
+        var health = calcSectorHealth(driverNum, timingDataLines, currentLap);
+        var sessionData = { TimingData: { Lines: timingDataLines } };
+        var degRate = calcDegRate(driverNum, currentLap, sessionData);
 
         if (driverHistory[driverNum]) {
             driverHistory[driverNum].degRate = degRate;
         }
 
-        const battleResult = detectBattles(driverNum, timingDataLines, currentLap);
+        allDegRates[driverNum] = { deg: degRate, compound: "" };
 
-        const window = calcPitWindow(driverNum, currentLap, stints, degRate, health, battleResult.penalty);
-
-        if (window) {
-            newPredictedWindows[driverNum] = window;
+        var compound = "---";
+        if (stints && stints.length > 0) {
+            compound = stints[stints.length - 1].Compound || "---";
         }
-
-        const compound = window ? window.compound : "---";
-        if (degRate !== null && degRate !== undefined) {
+        if (degRate !== null && degRate !== undefined && compound !== "---") {
             if (!newDegRates[compound]) newDegRates[compound] = 0;
             if (!newCounts[compound]) newCounts[compound] = 0;
             newDegRates[compound] += degRate;
             newCounts[compound]++;
+        }
+    }
+
+    degRates = newDegRates;
+    compoundCounts = newCounts;
+
+    var compoundAvgDegMap = {};
+    for (var comp in newCounts) {
+        if (newCounts[comp] > 0) {
+            compoundAvgDegMap[comp] = newDegRates[comp] / newCounts[comp];
+        }
+    }
+
+    for (var driverNum in driverListLines) {
+        var driverTiming = timingDataLines[driverNum];
+        if (!driverTiming || driverTiming.Retired || driverTiming.Stopped) continue;
+
+        var stints = getAllStints(timingAppLines, driverNum);
+        var degRateEntry = allDegRates[driverNum];
+        var degRate = degRateEntry ? degRateEntry.deg : null;
+        var health = calcSectorHealth(driverNum, timingDataLines, currentLap);
+        var battleResult = detectBattles(driverNum, timingDataLines, currentLap);
+
+        var compoundKey = "---";
+        if (stints && stints.length > 0) {
+            compoundKey = stints[stints.length - 1].Compound || "---";
+        }
+
+        var teammateNum = teammateMap[driverNum];
+        var teammateDeg = null;
+        if (teammateNum && allDegRates[teammateNum]) {
+            teammateDeg = allDegRates[teammateNum].deg;
+        }
+
+        var compoundAvgDeg = compoundAvgDegMap[compoundKey] || null;
+
+        var window = calcPitWindow(
+            driverNum, currentLap, stints, degRate, health,
+            battleResult.penalty, compoundAvgDeg, teammateDeg
+        );
+
+        if (window) {
+            newPredictedWindows[driverNum] = window;
         }
     }
 
@@ -648,19 +773,26 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
             const maxL = windowEntry.maxLap;
             windowText = "Lap " + minL + "-" + maxL;
 
-            if (windowEntry.urgency === 2) {
+            if (windowEntry.justPitted) {
+                statusText = "JUST PITTED";
+                statusClass = "ok";
+            } else if (windowEntry.urgency === 2) {
                 statusText = "PIT NOW";
                 statusClass = "urgent";
+                if (windowEntry.tireAgeRatio > 0.85) statusText += " (old tires)";
             } else if (windowEntry.urgency === 1) {
                 const untilLap = windowEntry.minLap - currentLap;
                 statusText = "Imminent (" + untilLap + " lap" + (untilLap !== 1 ? "s" : "") + ")";
                 statusClass = "imminent";
+                if (windowEntry.tireAgeRatio > 0.85) statusText += " (old tires)";
             } else if (windowEntry.extended) {
                 statusText = "EXTENDED";
                 statusClass = "extended";
             } else {
                 const lapsLeft = windowEntry.minLap - currentLap;
-                statusText = "OK (" + Math.max(0, lapsLeft) + " laps)";
+                var okLabel = "OK (" + Math.max(0, lapsLeft) + " laps)";
+                if (windowEntry.tireAgeRatio < 0.30) okLabel = "FRESH (" + Math.max(0, lapsLeft) + " laps)";
+                statusText = okLabel;
                 statusClass = "ok";
             }
         } else {
@@ -710,13 +842,22 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
         }
 
         if (getDriverConfig("showDegRates", true) && degRate !== null) {
-            let degStr = (degRate >= 0 ? "+" : "") + degRate.toFixed(2);
+            var displayDeg = degRate;
+            var cappedNote = "";
+            if (windowEntry && windowEntry.adjustedDeg !== null && windowEntry.adjustedDeg !== undefined &&
+                windowEntry.originalDeg !== null && windowEntry.originalDeg !== undefined &&
+                Math.abs(windowEntry.adjustedDeg - windowEntry.originalDeg) > 0.001) {
+                displayDeg = windowEntry.adjustedDeg;
+                cappedNote = " (capped from " + (degRate >= 0 ? "+" : "") + degRate.toFixed(2) + ")";
+            }
+            var degStr = (displayDeg >= 0 ? "+" : "") + displayDeg.toFixed(2);
             const compoundKey = shortCompound;
             if (compoundRefDeg[compoundKey] && compoundRefDeg[compoundKey].count > 0) {
-                const diff = degRate - compoundRefDeg[compoundKey].avg;
+                const diff = displayDeg - compoundRefDeg[compoundKey].avg;
                 const diffStr = (diff >= 0 ? "+" : "") + diff.toFixed(2);
                 degStr += " (" + diffStr + " vs avg " + compoundKey + ")";
             }
+            degStr += cappedNote;
             detailHtml += '  |  deg ' + degStr;
         }
 
@@ -761,10 +902,10 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
                     let teamText = 'Team: ' + (driverListLines[teammateNum] ? driverListLines[teammateNum].Tla : teammateNum) +
                         ' [' + (predictedWindows[teammateNum] ? predictedWindows[teammateNum].compound.charAt(0) : '-') +
                         '] deg ' + (teammateDeg >= 0 ? "+" : "") + teammateDeg.toFixed(2);
-                    if (degRate !== null && Math.abs(degRate - teammateDeg) > 0.05) {
-                        teamText += ' → ' + (driverInfo ? driverInfo.Tla : "") + ' degrading differently';
+                    if (degRate !== null && Math.abs(degRate - teammateDeg) > 0.10) {
+                        teamText += ' → deg differs';
                     } else {
-                        teamText += ' → similar';
+                        teamText += ' → on pace';
                     }
                     teamRow.innerHTML = '<td colspan="5" class="team-label">' + teamText + '</td>';
                     tbody.appendChild(teamRow);
@@ -773,32 +914,6 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
         }
     }
 
-    let finalLap = totalLaps;
-    if (extrapolatedClock && extrapolatedClock.Remaining) {
-        const fastestLapSec = currentLap > 0 ? 85 : 0;
-    }
-    document.getElementById("lap-counter").textContent = "Lap " + currentLap + "/" + totalLaps;
-    document.getElementById("pit-loss").textContent = "Pit Loss: " + avgPitLoss.toFixed(1) + "s (SC: ~" + (avgPitLoss * 0.55).toFixed(1) + "s)";
-    document.getElementById("race-end").textContent = "Race End: ~Lap " + totalLaps;
-
-    let degBarHtml = "Deg: ";
-    for (const compound in compoundRefDeg) {
-        const data = compoundRefDeg[compound];
-        degBarHtml += "[" + compound + "]=" + (data.avg >= 0 ? "+" : "") + data.avg.toFixed(2) + "(" + data.count + ") ";
-    }
-    document.getElementById("deg-bar").textContent = degBarHtml;
-
-    let trackFlagText = "SC/VSC: NONE";
-    if (scResult.mode === "sc") trackFlagText = "SC DEPLOYED";
-    else if (scResult.mode === "vsc") trackFlagText = "VSC DEPLOYED";
-    else if (scResult.mode === "vsc_ending") trackFlagText = "VSC ENDING";
-    document.getElementById("track-flag").textContent = trackFlagText;
-
-    let rainText = "";
-    if (rainTransitionMessage) {
-        rainText = rainTransitionMessage;
-    }
-    document.getElementById("rain-flag").textContent = rainText;
 }
 
 function renderSCVSC(driverListLines, timingDataLines, timingAppLines, currentLap, scResult) {
@@ -896,6 +1011,30 @@ function renderSCVSC(driverListLines, timingDataLines, timingAppLines, currentLa
 
 function render(driverListLines, timingDataLines, timingAppLines, currentLap, totalLaps, trackStatus, extrapolatedClock, weatherData) {
     if (!driverListLines) return;
+
+    document.getElementById("lap-counter").textContent = "Lap " + currentLap + "/" + totalLaps;
+    document.getElementById("pit-loss").textContent = "Pit Loss: " + avgPitLoss.toFixed(1) + "s (SC: ~" + (avgPitLoss * 0.55).toFixed(1) + "s)";
+    document.getElementById("race-end").textContent = "Race End: ~Lap " + totalLaps;
+
+    const compoundRefDeg = calcCompoundRefDeg(degRates, compoundCounts);
+    let degBarHtml = "Deg: ";
+    for (const compound in compoundRefDeg) {
+        const data = compoundRefDeg[compound];
+        degBarHtml += "[" + compound + "]=" + (data.avg >= 0 ? "+" : "") + data.avg.toFixed(2) + "(" + data.count + ") ";
+    }
+    document.getElementById("deg-bar").textContent = degBarHtml;
+
+    let trackFlagText = "SC/VSC: NONE";
+    if (trackStatus === "4") trackFlagText = "SC DEPLOYED";
+    else if (trackStatus === "6") trackFlagText = "VSC DEPLOYED";
+    else if (trackStatus === "7") trackFlagText = "VSC ENDING";
+    document.getElementById("track-flag").textContent = trackFlagText;
+
+    let rainText = "";
+    if (rainTransitionMessage) {
+        rainText = rainTransitionMessage;
+    }
+    document.getElementById("rain-flag").textContent = rainText;
 
     const scResult = handleSCVSC(trackStatus);
     document.getElementById("sc-banner").classList.add("hidden");
