@@ -236,7 +236,20 @@ async function weather() {
 async function strategyPredictor() {
     const internalSettings = (await ipcRenderer.invoke("get_store")).internal_settings;
 
-    await ipcRenderer.invoke("window", ...Object.values(internalSettings.windows.strategypredictor));
+    const windowConfig = internalSettings.windows.strategypredictor || {
+        path: "strategypredictor/index.html",
+        width: 500,
+        height: 550,
+        frame: false,
+        hideMenuBar: true,
+        transparent: true,
+        hasShadow: false,
+        alwaysOnTop: null,
+        aspectRatio: null,
+        icon: "icons/windows/strategypredictor.png",
+    };
+
+    await ipcRenderer.invoke("window", ...Object.values(windowConfig));
 }
 
 async function autoSwitch() {

@@ -689,7 +689,7 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
         mainRow.innerHTML =
             '<td class="pos-cell">' + posDisplay + '</td>' +
             '<td class="driver-cell"><span style="color:' + teamHex + '" class="tla">' + tla + '</span></td>' +
-            '<td class="comp-cell"><span class="compound-badge" style="background:' + compoundColor + ';color:#000">' + shortCompound + '</span><span style="font-size:9px;color:rgba(255,255,255,0.4)">●'.repeat(Math.min(5, Math.ceil(agePercent / 20))) + '</span><span style="font-size:9px;color:rgba(255,255,255,0.2)">' + ('●'.repeat(Math.max(0, 5 - Math.min(5, Math.ceil(agePercent / 20))))) + '</span></td>' +
+            '<td class="comp-cell"><span class="compound-badge" style="background:' + compoundColor + ';color:#000">' + shortCompound + '</span><span style="font-size:11px;color:rgba(255,255,255,0.4)">●'.repeat(Math.min(5, Math.ceil(agePercent / 20))) + '</span><span style="font-size:11px;color:rgba(255,255,255,0.2)">' + ('●'.repeat(Math.max(0, 5 - Math.min(5, Math.ceil(agePercent / 20))))) + '</span></td>' +
             '<td class="pit-window-cell"><span class="window-range">' + windowText + '</span></td>' +
             '<td class="status-cell"><span class="' + statusClass + '">' + patternIcon + ' ' + statusText + '</span></td>';
         tbody.appendChild(mainRow);
@@ -887,7 +887,7 @@ function renderSCVSC(driverListLines, timingDataLines, timingAppLines, currentLa
         tr.innerHTML =
             '<td class="pos-cell">' + posDisplay + '</td>' +
             '<td class="driver-cell"><span style="color:' + teamHex + '" class="tla">' + tla + '</span></td>' +
-            '<td class="comp-cell"><span class="compound-badge" style="background:' + compoundColor + ';color:#000">' + shortCompound + '</span><span style="font-size:9px;color:rgba(255,255,255,0.4)"> Age ' + row.stintAge + '/' + row.compoundLife + '</span></td>' +
+            '<td class="comp-cell"><span class="compound-badge" style="background:' + compoundColor + ';color:#000">' + shortCompound + '</span><span style="font-size:11px;color:rgba(255,255,255,0.4)"> Age ' + row.stintAge + '/' + row.compoundLife + '</span></td>' +
             '<td class="pit-window-cell"><span class="age-bar"><span class="age-bar-fill" style="width:' + agePercent + '%;background:' + row.color + '"></span></span></td>' +
             '<td class="status-cell"><span style="color:' + row.color + '">' + row.label + '</span></td>';
         tbody.appendChild(tr);
@@ -927,7 +927,7 @@ async function run() {
                 return;
             }
 
-            const driverListLines = state.DriverList ? state.DriverList.Lines : null;
+            const driverListLines = state.DriverList || null;
             const timingDataLines = state.TimingData ? state.TimingData.Lines : null;
             const timingAppLines = state.TimingAppData ? state.TimingAppData.Lines : null;
             const timingStatsLines = state.TimingStats ? state.TimingStats.Lines : null;

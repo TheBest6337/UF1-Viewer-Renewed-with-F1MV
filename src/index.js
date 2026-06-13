@@ -339,6 +339,10 @@ const store = new Store({
         "https://api.jstt.me/api/v2/uf1/analytics/active-users/post"
       );
     },
+    "2.0.1": (store) => {
+      store.set("config.strategypredictor", defaults.config.strategypredictor);
+      store.set("internal_settings.windows.strategypredictor", defaults.internal_settings.windows.strategypredictor);
+    },
   },
 
   defaults: defaults,

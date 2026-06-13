@@ -7,7 +7,7 @@ body {
     height: 100vh;
     width: 100vw;
     overflow: hidden;
-    background-color: transparent;
+    background-color: #0a0a0faf;
     color: #ffffff;
     font-family: "OF1Bold", sans-serif;
 }
@@ -27,22 +27,22 @@ body {
 
 .header h1 {
     font-family: "SFBold", sans-serif;
-    font-size: 13px;
+    font-size: 15px;
     letter-spacing: 1px;
     color: #ffffff;
 }
 
 .header span {
     font-family: "OF1Bold", sans-serif;
-    font-size: 11px;
+    font-size: 13px;
     color: rgba(255, 255, 255, 0.6);
 }
 
 .sc-banner {
-    padding: 6px 12px;
+    padding: 8px 12px;
     background: rgba(255, 230, 0, 0.15);
     border-bottom: 1px solid rgba(255, 230, 0, 0.3);
-    font-size: 11px;
+    font-size: 13px;
     text-align: center;
     color: #fdd835;
 }
@@ -52,7 +52,7 @@ body {
 }
 
 #table-container {
-    height: calc(100vh - 60px);
+    height: calc(100vh - 64px);
     overflow-y: auto;
     overflow-x: hidden;
 }
@@ -77,11 +77,11 @@ table {
 
 thead th {
     font-family: "SFBold", sans-serif;
-    font-size: 9px;
+    font-size: 11px;
     letter-spacing: 0.5px;
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.6);
     text-align: left;
-    padding: 3px 8px;
+    padding: 4px 10px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(0, 0, 0, 0.5);
     position: sticky;
@@ -89,10 +89,10 @@ thead th {
     z-index: 1;
 }
 
-.col-pos { width: 35px; }
-.col-driver { width: 65px; }
-.col-comp { width: 80px; }
-.col-pit { width: 110px; }
+.col-pos { width: 40px; }
+.col-driver { width: 55px; }
+.col-comp { width: 90px; }
+.col-pit { width: 120px; }
 .col-status { width: auto; }
 
 tbody tr {
@@ -108,14 +108,14 @@ tbody tr.urgency-1 {
 }
 
 tbody td {
-    font-size: 11px;
-    padding: 3px 8px;
+    font-size: 13px;
+    padding: 4px 10px;
     vertical-align: middle;
 }
 
 .pos-cell {
-    color: rgba(255, 255, 255, 0.5);
-    font-size: 10px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 12px;
 }
 
 .driver-cell .tla {
@@ -129,15 +129,15 @@ tbody td {
 
 .compound-badge {
     display: inline-block;
-    padding: 1px 5px;
+    padding: 2px 6px;
     border-radius: 3px;
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 700;
-    margin-right: 2px;
+    margin-right: 3px;
 }
 
 .pit-window-cell {
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .pit-window-cell .window-range {
@@ -145,7 +145,7 @@ tbody td {
 }
 
 .status-cell {
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .status-cell .urgent {
@@ -167,20 +167,20 @@ tbody td {
 }
 
 .detail-row td {
-    padding: 1px 8px 4px 24px;
-    font-size: 9px;
-    color: rgba(255, 255, 255, 0.5);
+    padding: 2px 10px 5px 24px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
     line-height: 1.4;
 }
 
 .detail-row .team-label {
-    color: rgba(255, 255, 255, 0.35);
+    color: rgba(255, 255, 255, 0.55);
 }
 
 .health-bar {
     display: inline-block;
-    width: 60px;
-    height: 4px;
+    width: 70px;
+    height: 5px;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 2px;
     vertical-align: middle;
@@ -194,14 +194,14 @@ tbody td {
 }
 
 .sc-row td {
-    padding: 4px 8px;
-    font-size: 10px;
+    padding: 5px 10px;
+    font-size: 12px;
 }
 
 .age-bar {
     display: inline-block;
     width: 50px;
-    height: 4px;
+    height: 5px;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 2px;
     vertical-align: middle;
@@ -218,23 +218,23 @@ tbody td {
 .gathering p {
     text-align: center;
     padding: 30px 12px;
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.5);
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
 }
 
 .footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 4px 12px;
+    padding: 5px 12px;
     background: rgba(0, 0, 0, 0.7);
     border-top: 1px solid rgba(255, 255, 255, 0.1);
-    font-size: 9px;
-    color: rgba(255, 255, 255, 0.4);
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.6);
     flex-wrap: wrap;
     gap: 6px;
 }
 
 .deg-bar {
-    color: rgba(255, 255, 255, 0.6);
+    color: rgba(255, 255, 255, 0.8);
 }
