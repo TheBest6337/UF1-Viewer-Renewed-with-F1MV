@@ -123,6 +123,8 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
             const pitWidthPct = Math.max(0, pitEndPct - pitStartPct);
             const windowColor = windowEntry.urgency === 2 ? '#f44336' : windowEntry.urgency === 1 ? '#fdd835' : '#4caf50';
             pitTimelineHtml += '<div class="pit-window-bar" style="left:' + pitStartPct.toFixed(1) + '%;width:' + pitWidthPct.toFixed(1) + '%;background:' + windowColor + '"></div>';
+            pitTimelineHtml += '<span class="pit-lap-label" style="left:' + pitStartPct.toFixed(1) + '%">' + windowEntry.minLap + '</span>';
+            pitTimelineHtml += '<span class="pit-lap-label" style="left:' + pitEndPct.toFixed(1) + '%">' + windowEntry.maxLap + '</span>';
         }
         pitTimelineHtml += '<div class="pit-tick" style="left:' + currentPct.toFixed(1) + '%"></div></div>';
 
