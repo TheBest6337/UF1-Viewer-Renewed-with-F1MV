@@ -233,6 +233,12 @@ async function weather() {
     await ipcRenderer.invoke("window", ...Object.values(internalSettings.windows.weather));
 }
 
+async function strategyPredictor() {
+    const internalSettings = (await ipcRenderer.invoke("get_store")).internal_settings;
+
+    await ipcRenderer.invoke("window", ...Object.values(internalSettings.windows.strategypredictor));
+}
+
 async function autoSwitch() {
     const internalSettings = (await ipcRenderer.invoke("get_store")).internal_settings;
 

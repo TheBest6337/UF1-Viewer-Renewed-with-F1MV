@@ -1,0 +1,240 @@
+* {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    background-color: transparent;
+    color: #ffffff;
+    font-family: "OF1Bold", sans-serif;
+}
+
+.drag {
+    -webkit-app-region: drag;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px 4px 12px;
+    background: rgba(0, 0, 0, 0.7);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.header h1 {
+    font-family: "SFBold", sans-serif;
+    font-size: 13px;
+    letter-spacing: 1px;
+    color: #ffffff;
+}
+
+.header span {
+    font-family: "OF1Bold", sans-serif;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.sc-banner {
+    padding: 6px 12px;
+    background: rgba(255, 230, 0, 0.15);
+    border-bottom: 1px solid rgba(255, 230, 0, 0.3);
+    font-size: 11px;
+    text-align: center;
+    color: #fdd835;
+}
+
+.hidden {
+    display: none;
+}
+
+#table-container {
+    height: calc(100vh - 60px);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+#table-container::-webkit-scrollbar {
+    width: 4px;
+}
+
+#table-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#table-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+thead th {
+    font-family: "SFBold", sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.5px;
+    color: rgba(255, 255, 255, 0.4);
+    text-align: left;
+    padding: 3px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.5);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.col-pos { width: 35px; }
+.col-driver { width: 65px; }
+.col-comp { width: 80px; }
+.col-pit { width: 110px; }
+.col-status { width: auto; }
+
+tbody tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+tbody tr.urgency-2 {
+    background: rgba(244, 67, 54, 0.12);
+}
+
+tbody tr.urgency-1 {
+    background: rgba(253, 216, 53, 0.08);
+}
+
+tbody td {
+    font-size: 11px;
+    padding: 3px 8px;
+    vertical-align: middle;
+}
+
+.pos-cell {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 10px;
+}
+
+.driver-cell .tla {
+    font-weight: 700;
+}
+
+.driver-cell .pos {
+    font-family: "OF1Bold", sans-serif;
+    font-size: 13px;
+}
+
+.compound-badge {
+    display: inline-block;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 700;
+    margin-right: 2px;
+}
+
+.pit-window-cell {
+    font-size: 10px;
+}
+
+.pit-window-cell .window-range {
+    font-weight: 700;
+}
+
+.status-cell {
+    font-size: 10px;
+}
+
+.status-cell .urgent {
+    color: #f44336;
+    font-weight: 700;
+}
+
+.status-cell .imminent {
+    color: #fdd835;
+    font-weight: 700;
+}
+
+.status-cell .ok {
+    color: #4caf50;
+}
+
+.status-cell .extended {
+    color: #9c27b0;
+}
+
+.detail-row td {
+    padding: 1px 8px 4px 24px;
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.5);
+    line-height: 1.4;
+}
+
+.detail-row .team-label {
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.health-bar {
+    display: inline-block;
+    width: 60px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    vertical-align: middle;
+    margin: 0 3px;
+    overflow: hidden;
+}
+
+.health-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+}
+
+.sc-row td {
+    padding: 4px 8px;
+    font-size: 10px;
+}
+
+.age-bar {
+    display: inline-block;
+    width: 50px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    vertical-align: middle;
+    margin: 0 3px;
+    overflow: hidden;
+}
+
+.age-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+}
+
+.no-race p,
+.gathering p {
+    text-align: center;
+    padding: 30px 12px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 12px;
+    background: rgba(0, 0, 0, 0.7);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.4);
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.deg-bar {
+    color: rgba(255, 255, 255, 0.6);
+}

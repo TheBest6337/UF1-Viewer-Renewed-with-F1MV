@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Strategy Predictor</title>
+        <link rel="stylesheet" href="style.css" />
+        <link rel="stylesheet" href="../fonts/fonts.css" />
+        <link rel="stylesheet" href="../styles/window_info.css" />
+
+        <script src="./index.js" defer></script>
+        <script src="../scripts/movemode.js" defer></script>
+    </head>
+    <body id="background" class="drag">
+        <div id="header" class="header">
+            <h1 id="title">STRATEGY PREDICTOR</h1>
+            <span id="lap-counter">Lap 0/0</span>
+        </div>
+        <div id="sc-banner" class="sc-banner hidden"></div>
+        <div id="table-container">
+            <table id="main-table">
+                <thead>
+                    <tr>
+                        <th class="col-pos">#</th>
+                        <th class="col-driver">DRIVER</th>
+                        <th class="col-comp">COMP</th>
+                        <th class="col-pit">PIT WINDOW</th>
+                        <th class="col-status">STATUS</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+            <div id="no-race" class="no-race hidden">
+                <p>Only available during Race sessions</p>
+            </div>
+            <div id="gathering" class="gathering hidden">
+                <p>GATHERING DATA... <span id="gathering-laps"></span></p>
+            </div>
+        </div>
+        <div id="footer" class="footer">
+            <span id="pit-loss">Pit Loss: 22.3s (SC: ~12s)</span>
+            <span id="race-end">Race End: ~Lap --</span>
+            <span id="deg-bar" class="deg-bar"></span>
+            <span id="track-flag">SC/VSC: NONE</span>
+            <span id="rain-flag"></span>
+        </div>
+    </body>
+</html>
