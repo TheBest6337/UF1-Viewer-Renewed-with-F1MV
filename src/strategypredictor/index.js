@@ -30,6 +30,7 @@ let degRates = {};
 
 let compoundCounts = {};
 let compoundExtensionData = {}; // tracks how far each compound is running past its nominal life
+let fleetMaxCompoundAge = {};   // max tire age currently seen per compound across all drivers
 
 let lastTrackStatus = "1";
 let lastSCExitLap = -99;
@@ -394,9 +395,27 @@ function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battle
         }
     }
 
+    // Same-compound fleet extension: if 2+ cars on this compound are running past nominal
+    // life with flat deg, use the fleet average ratio to extend this driver's window too
+    var extDataSelf = compoundExtensionData[compound];
+    if (extDataSelf && extDataSelf.count >= 2) {
+        var selfAvgRatio = extDataSelf.sum / extDataSelf.count;
+        if (selfAvgRatio > 1) {
+            effectiveLife = Math.max(effectiveLife, compoundLife * selfAvgRatio);
+        }
+    }
+
+    // Fleet max age floor: if someone else is still running on this compound at a higher
+    // age with acceptable deg, our effectiveLife must be at least that high
+    var fleetMax = fleetMaxCompoundAge[compound] || 0;
+    if (fleetMax > effectiveLife) {
+        effectiveLife = Math.max(effectiveLife, fleetMax + 3);
+    }
+
     // When tire outlives prediction with flat/neg deg, roll the window forward dynamically
-    if ((adjustedDeg === null || adjustedDeg <= 0.02) && stintAge > effectiveLife * 0.9) {
-        effectiveLife = stintAge + 5;
+    // Use a larger increment and relax the deg condition to 0.05 so SC-spike laps don't block it
+    if ((adjustedDeg === null || adjustedDeg <= 0.05) && stintAge > effectiveLife * 0.9) {
+        effectiveLife = stintAge + Math.max(8, compoundLife * 0.35);
     }
 
     // Cross-compound extension: if any compound ran X% longer than nominal, propagate
@@ -433,7 +452,9 @@ function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battle
         lapsLeft -= battlePenalty * lapsLeft;
     }
 
-    if (tireAgeRatio > 0.85) {
+    // Use effectiveLife-relative ratio so dynamic/fleet extension is respected here too
+    const effectiveAgeRatio = stintAge / effectiveLife;
+    if (effectiveAgeRatio > 0.90) {
         if (lapsLeft > threatLapThreshold) {
             lapsLeft = threatLapThreshold;
         }
@@ -710,8 +731,9 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
         }
     }
 
-    // Collect cross-compound extension observations: which compounds are running past nominal life with flat/neg deg?
+    // Collect cross-compound extension observations and fleet max age per compound
     compoundExtensionData = {};
+    fleetMaxCompoundAge = {};
     for (var _dn in allDegRates) {
         var _stints = getAllStints(timingAppLines, _dn);
         if (!_stints || _stints.length === 0) continue;
@@ -721,7 +743,16 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
         var _age = _stint.TotalLaps != null ? _stint.TotalLaps : 0;
         var _nomLife = getCompoundLife(_comp);
         var _deg = allDegRates[_dn] ? allDegRates[_dn].deg : null;
-        if (_age >= _nomLife && (_deg === null || _deg <= 0.02)) {
+
+        // Track fleet max age per compound regardless of whether past nominal
+        if (_age > 5 && (_deg === null || _deg <= 0.10)) {
+            if (!fleetMaxCompoundAge[_comp] || _age > fleetMaxCompoundAge[_comp]) {
+                fleetMaxCompoundAge[_comp] = _age;
+            }
+        }
+
+        // Collect extension ratio when past nominal life with flat/neg deg
+        if (_age >= _nomLife && (_deg === null || _deg <= 0.05)) {
             if (!compoundExtensionData[_comp]) compoundExtensionData[_comp] = { sum: 0, count: 0 };
             compoundExtensionData[_comp].sum += _age / _nomLife;
             compoundExtensionData[_comp].count++;
