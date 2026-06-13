@@ -74,6 +74,7 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
         const stintAge = windowEntry ? windowEntry.stintAge : 0;
         const compLife = windowEntry ? windowEntry.compoundLife : 16;
         const agePercent = Math.min(100, Math.max(0, (stintAge / compLife) * 100));
+        const tireBarColor = agePercent > 75 ? '#f44336' : agePercent > 45 ? '#fdd835' : '#4caf50';
 
         var windowText = "--";
         var statusText = "";
@@ -110,31 +111,29 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
             statusText = "NO DATA";
         }
 
-        var patternIcon = "\u2192";
-        var patternTitle = "consistent";
-        if (pattern === "up") { patternIcon = "\u2191"; patternTitle = "warming"; }
-        else if (pattern === "down") { patternIcon = "\u2193"; patternTitle = "pushing"; }
-
-        var battleModifier = "";
-        if (battleResult.fighting && pattern === "down") battleModifier = "\u2694";
-        else if (battleResult.pushing && pattern === "down") battleModifier = "\u21C8";
-        else if (battleResult.dirtyAir && pattern === "flat") battleModifier = "\u2550";
-        else if (battleResult.fighting && pattern !== "down") battleModifier = "\u2694";
-
-        if (battleModifier) patternIcon += battleModifier;
-
         const teamHex = teamColour ? "#" + teamColour : "#5b5b5d";
 
         const posDisplay = isNaN(position) ? "--" : "P" + position;
+
+        var currentPct = totalLaps > 0 ? Math.min(100, (currentLap / totalLaps) * 100) : 0;
+        var pitTimelineHtml = '<div class="pit-timeline"><div class="pit-elapsed" style="width:' + currentPct.toFixed(1) + '%"></div>';
+        if (windowEntry) {
+            const pitStartPct = Math.min(100, (windowEntry.minLap / totalLaps) * 100);
+            const pitEndPct = Math.min(100, (windowEntry.maxLap / totalLaps) * 100);
+            const pitWidthPct = Math.max(0, pitEndPct - pitStartPct);
+            const windowColor = windowEntry.urgency === 2 ? '#f44336' : windowEntry.urgency === 1 ? '#fdd835' : '#4caf50';
+            pitTimelineHtml += '<div class="pit-window-bar" style="left:' + pitStartPct.toFixed(1) + '%;width:' + pitWidthPct.toFixed(1) + '%;background:' + windowColor + '"></div>';
+        }
+        pitTimelineHtml += '<div class="pit-tick" style="left:' + currentPct.toFixed(1) + '%"></div></div>';
 
         const mainRow = document.createElement("tr");
         mainRow.className = urgencyClass;
         mainRow.innerHTML =
             '<td class="pos-cell">' + posDisplay + '</td>' +
             '<td class="driver-cell"><span style="color:' + teamHex + '" class="tla">' + tla + '</span></td>' +
-            '<td class="comp-cell"><span class="compound-badge" style="background:' + compoundColor + ';color:#000">' + shortCompound + '</span><span style="font-size:11px;color:rgba(255,255,255,0.4)">' + '\u25CF'.repeat(Math.min(5, Math.ceil(agePercent / 20))) + '</span><span style="font-size:11px;color:rgba(255,255,255,0.2)">' + ('\u25CF'.repeat(Math.max(0, 5 - Math.min(5, Math.ceil(agePercent / 20))))) + '</span></td>' +
+            '<td class="comp-cell"><span class="compound-badge" style="background:' + compoundColor + ';color:#000">' + shortCompound + '</span><span class="tire-bar"><span class="tire-bar-fill" style="width:' + agePercent.toFixed(1) + '%;background:' + tireBarColor + '"></span></span></td>' +
             '<td class="pit-window-cell"><span class="window-range">' + windowText + '</span></td>' +
-            '<td class="status-cell"><span class="' + statusClass + '">' + patternIcon + ' ' + statusText + '</span></td>';
+            '<td class="status-cell"><span class="' + statusClass + '">' + statusText + '</span>' + pitTimelineHtml + '</td>';
         tbody.appendChild(mainRow);
 
         const detailRow = document.createElement("tr");
@@ -149,31 +148,55 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
             else healthBarColor = "#f44336";
 
             const healthPct = Math.min(100, Math.max(0, ((health.score + 10) / 20) * 100));
-            detailHtml += 'Sectors Health ' + health.score.toFixed(0) + ' <span class="health-bar"><span class="health-bar-fill" style="width:' + healthPct + '%;background:' + healthBarColor + '"></span></span>';
+            detailHtml += '<span style="color:rgba(255,255,255,0.45)">SH</span> <span style="color:' + healthBarColor + '">' + health.score.toFixed(0) + '</span><span class="health-bar"><span class="health-bar-fill" style="width:' + healthPct + '%;background:' + healthBarColor + '"></span></span>';
         }
 
         if (getDriverConfig("showDegRates", true) && degRate !== null) {
             var displayDeg = degRate;
-            var cappedNote = "";
             if (windowEntry && windowEntry.adjustedDeg !== null && windowEntry.adjustedDeg !== undefined &&
                 windowEntry.originalDeg !== null && windowEntry.originalDeg !== undefined &&
                 Math.abs(windowEntry.adjustedDeg - windowEntry.originalDeg) > 0.001) {
                 displayDeg = windowEntry.adjustedDeg;
-                cappedNote = " (capped from " + (degRate >= 0 ? "+" : "") + degRate.toFixed(2) + ")";
             }
-            var degStr = (displayDeg >= 0 ? "+" : "") + displayDeg.toFixed(2);
-            const compoundKey = shortCompound;
-            if (compoundRefDeg[compoundKey] && compoundRefDeg[compoundKey].count > 0) {
-                const diff = displayDeg - compoundRefDeg[compoundKey].avg;
-                const diffStr = (diff >= 0 ? "+" : "") + diff.toFixed(2);
-                degStr += " (" + diffStr + " vs avg " + compoundKey + ")";
+            var degClass = 'deg-noref';
+            if (compoundRefDeg[shortCompound] && compoundRefDeg[shortCompound].count > 0) {
+                const diff = displayDeg - compoundRefDeg[shortCompound].avg;
+                if (diff < -0.05) degClass = 'deg-good';
+                else if (diff <= 0.10) degClass = 'deg-mid';
+                else degClass = 'deg-bad';
             }
-            degStr += cappedNote;
-            detailHtml += '  |  deg ' + degStr;
+            const degValStr = (displayDeg >= 0 ? "+" : "") + displayDeg.toFixed(2);
+            detailHtml += '  |  deg <span class="' + degClass + '">' + degValStr + '</span>';
+
+            if (getDriverConfig("showTeamDeg", true) && teamDegData[teamName]) {
+                const teammateNum = teamDegData[teamName].drivers.find(function (d) { return d !== driverNum; });
+                if (teammateNum) {
+                    const teammateDeg = (state.driverHistory[teammateNum] && state.driverHistory[teammateNum].degRate) || null;
+                    if (teammateDeg !== null && Math.abs(degRate - teammateDeg) > 0.10) {
+                        const tmTla = driverListLines[teammateNum] ? driverListLines[teammateNum].Tla : teammateNum;
+                        const tmDiff = degRate - teammateDeg;
+                        detailHtml += ' <span style="color:rgba(255,255,255,0.45)">vs ' + tmTla + ' ' + (tmDiff >= 0 ? '+' : '') + tmDiff.toFixed(2) + (tmDiff > 0 ? '↑' : '↓') + '</span>';
+                    }
+                }
+            }
         }
 
         if (battleResult.penalty > 0 && getDriverConfig("battleDegEnabled", true)) {
             detailHtml += '  |  <span style="color:#f44336">battle +' + battleResult.penalty.toFixed(2) + '/lap</span>';
+        }
+
+        if (getDriverConfig("showUndercut", true)) {
+            for (const threat of state.undercutThreats) {
+                if (threat.behind === driverNum) {
+                    const aheadTla = driverListLines[threat.ahead] ? driverListLines[threat.ahead].Tla : threat.ahead;
+                    if (threat.type === "undercut") {
+                        detailHtml += '  <span class="threat-badge">⚡ UC: +' + threat.netGain.toFixed(1) + 's vs ' + aheadTla + '</span>';
+                    } else if (threat.type === "overcut") {
+                        detailHtml += '  <span class="threat-badge oc">⚡ OC: -' + threat.paceLoss.toFixed(1) + 's</span>';
+                    }
+                    break;
+                }
+            }
         }
 
         if (detailHtml.length > 0) {
@@ -181,48 +204,6 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
             tbody.appendChild(detailRow);
         }
 
-        if (getDriverConfig("showUndercut", true)) {
-            for (const threat of state.undercutThreats) {
-                if (threat.behind === driverNum) {
-                    const threatRow = document.createElement("tr");
-                    threatRow.className = "detail-row";
-                    var threatText = "";
-                    if (threat.type === "undercut") {
-                        threatText = "\u21B3 " + threat.gap.toFixed(1) + "s behind #" +
-                            (driverListLines[threat.ahead] ? driverListLines[threat.ahead].Tla : threat.ahead) +
-                            " \u2014 Undercut possible (+" + threat.netGain.toFixed(1) + "s net)";
-                    } else if (threat.type === "overcut") {
-                        threatText = "\u21B3 " + threat.gap.toFixed(1) + "s behind #" +
-                            (driverListLines[threat.ahead] ? driverListLines[threat.ahead].Tla : threat.ahead) +
-                            " \u2014 Overcut risk (-" + threat.paceLoss.toFixed(1) + "s staying out)";
-                    }
-                    threatRow.innerHTML = '<td colspan="5" style="color:#fdd835">' + threatText + '</td>';
-                    tbody.appendChild(threatRow);
-                }
-            }
-        }
-
-        if (getDriverConfig("showTeamDeg", true) && teamDegData[teamName]) {
-            const teamData = teamDegData[teamName];
-            const teammateNum = teamData.drivers.find(function (d) { return d !== driverNum; });
-            if (teammateNum && state.predictedWindows[teammateNum]) {
-                const teammateDeg = (state.driverHistory[teammateNum] && state.driverHistory[teammateNum].degRate) || null;
-                if (teammateDeg !== null) {
-                    const teamRow = document.createElement("tr");
-                    teamRow.className = "detail-row";
-                    var teamText = 'Team: ' + (driverListLines[teammateNum] ? driverListLines[teammateNum].Tla : teammateNum) +
-                        ' [' + (state.predictedWindows[teammateNum] ? state.predictedWindows[teammateNum].compound.charAt(0) : '-') +
-                        '] deg ' + (teammateDeg >= 0 ? "+" : "") + teammateDeg.toFixed(2);
-                    if (degRate !== null && Math.abs(degRate - teammateDeg) > 0.10) {
-                        teamText += ' \u2192 deg differs';
-                    } else {
-                        teamText += ' \u2192 on pace';
-                    }
-                    teamRow.innerHTML = '<td colspan="5" class="team-label">' + teamText + '</td>';
-                    tbody.appendChild(teamRow);
-                }
-            }
-        }
     }
 
 }
