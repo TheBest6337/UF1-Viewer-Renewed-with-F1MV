@@ -459,7 +459,7 @@ function logLap(data) {
         delete entry._np;
         var line = JSON.stringify(entry);
         fs.appendFileSync(logFilePath, line + "\n");
-        console.log("[strategy-log] LAP " + currentLap + ":", line);
+        if (debug) console.log("[strategy-log] LAP " + currentLap + ":", line);
         lastLoggedLap = currentLap;
         lastDriverPositions = newPositions || {};
     } catch (err) {
