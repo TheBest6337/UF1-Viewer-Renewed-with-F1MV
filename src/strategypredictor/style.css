@@ -316,3 +316,131 @@ tbody td {
 .deg-bar {
     color: rgba(255, 255, 255, 0.8);
 }
+
+/* ── Undercut tracker card ──────────────────────────── */
+
+.undercut-card {
+    display: block;
+    background: rgba(253, 216, 53, 0.07);
+    border: 1px solid rgba(253, 216, 53, 0.25);
+    border-radius: 4px;
+    padding: 5px 8px 4px 8px;
+    margin: 2px 0;
+    font-size: 10px;
+}
+
+.uc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.uc-label {
+    color: #fdd835;
+    font-size: 10px;
+    letter-spacing: 0.3px;
+    font-weight: 700;
+}
+
+.uc-drivers {
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.uc-vs {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 9px;
+    font-weight: 400;
+}
+
+.uc-position-meter {
+    margin-bottom: 4px;
+}
+
+.uc-meter-track {
+    position: relative;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: visible;
+}
+
+.uc-meter-zone-close {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 25%;
+    height: 100%;
+    background: rgba(76, 175, 80, 0.3);
+    border-radius: 3px 0 0 3px;
+}
+
+.uc-meter-marker {
+    position: absolute;
+    top: -3px;
+    width: 2px;
+    height: 11px;
+    background: #fdd835;
+    border-radius: 1px;
+    transform: translateX(-50%);
+}
+
+.uc-meter-labels {
+    display: flex;
+    justify-content: space-between;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 8px;
+    margin-top: 2px;
+}
+
+.uc-bottom-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.uc-gap-spark {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.uc-spark-dot {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+}
+
+.uc-spark-dot--close { background: #4caf50; }
+.uc-spark-dot--mid   { background: #fdd835; }
+.uc-spark-dot--far   { background: rgba(255, 255, 255, 0.25); }
+
+.uc-gap-value {
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 36px;
+}
+
+.uc-delta {
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.uc-delta--closing { color: #4caf50; }
+.uc-delta--falling { color: #f44336; }
+.uc-delta--stable  { color: rgba(255, 255, 255, 0.45); }
+
+.uc-status {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    margin-left: auto;
+}
+
+.uc-status--ahead   { color: #4caf50; }
+.uc-status--close   { color: #f44336; }
+.uc-status--closing { color: #4caf50; }
+.uc-status--falling { color: rgba(255, 255, 255, 0.45); }

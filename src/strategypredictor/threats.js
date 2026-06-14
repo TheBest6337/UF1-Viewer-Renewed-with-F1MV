@@ -5,14 +5,6 @@ const { state } = require("./state");
 function detectUndercutOvercut(driverBehindNum, driverAheadNum, gapBetween, timingDataLines, currentLap) {
     if (gapBetween > 4.0) return null;
 
-    const behindJustPitted = state.justPittedDrivers[driverBehindNum] !== undefined;
-    const aheadJustPitted = state.justPittedDrivers[driverAheadNum] !== undefined;
-
-    // Active undercut: behind driver just pitted, ahead driver hasn't yet
-    if (behindJustPitted && !aheadJustPitted) {
-        return { type: "undercut_active", gap: gapBetween };
-    }
-
     const behindWindow = state.predictedWindows[driverBehindNum];
     const aheadWindow = state.predictedWindows[driverAheadNum];
     if (!behindWindow || !aheadWindow) return null;

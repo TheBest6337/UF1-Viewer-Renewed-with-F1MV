@@ -8,6 +8,91 @@ const { detectBattles } = require("./battles");
 const { calcTeamDeg, calcCompoundRefDeg } = require("./aggregation");
 const { handleSCVSC } = require("./safetycar");
 
+function buildUndercutCard(threat, driverListLines) {
+    const histKey = threat.behind + "_" + threat.ahead;
+    const history = state.undercutHistory[histKey] || [];
+
+    const behindInfo = driverListLines[threat.behind];
+    const aheadInfo  = driverListLines[threat.ahead];
+    const behindTla  = behindInfo ? behindInfo.Tla : threat.behind;
+    const aheadTla   = aheadInfo  ? aheadInfo.Tla  : threat.ahead;
+    const behindColor = behindInfo && behindInfo.TeamColour ? "#" + behindInfo.TeamColour : "#fdd835";
+    const aheadColor  = aheadInfo  && aheadInfo.TeamColour  ? "#" + aheadInfo.TeamColour  : "#ffffff";
+
+    const currentGap = threat.gap;
+    const prevGap    = history.length >= 2 ? history[history.length - 2] : null;
+    const delta      = prevGap !== null ? currentGap - prevGap : 0;
+
+    var statusLabel, statusClass;
+    if (currentGap <= 0) {
+        statusLabel = "EMERGED AHEAD";
+        statusClass = "uc-status uc-status--ahead";
+    } else if (currentGap < 2.0) {
+        statusLabel = "VERY CLOSE";
+        statusClass = "uc-status uc-status--close";
+    } else if (delta < -0.05) {
+        statusLabel = "CLOSING";
+        statusClass = "uc-status uc-status--closing";
+    } else if (delta > 0.05) {
+        statusLabel = "FALLING BACK";
+        statusClass = "uc-status uc-status--falling";
+    } else {
+        statusLabel = "CLOSING";
+        statusClass = "uc-status uc-status--closing";
+    }
+
+    var deltaHtml = "";
+    if (prevGap !== null) {
+        if (delta < -0.05)     deltaHtml = '<span class="uc-delta uc-delta--closing">↓' + Math.abs(delta).toFixed(1) + 's</span>';
+        else if (delta > 0.05) deltaHtml = '<span class="uc-delta uc-delta--falling">↑' + delta.toFixed(1) + 's</span>';
+        else                   deltaHtml = '<span class="uc-delta uc-delta--stable">→</span>';
+    }
+
+    const METER_MAX = 8.0;
+    const clampedGap = Math.min(Math.max(currentGap, 0), METER_MAX);
+    const markerPct  = (clampedGap / METER_MAX * 100).toFixed(1);
+    const meterHtml =
+        '<div class="uc-position-meter">' +
+            '<div class="uc-meter-track">' +
+                '<div class="uc-meter-zone-close"></div>' +
+                '<div class="uc-meter-marker" style="left:' + markerPct + '%"></div>' +
+            '</div>' +
+            '<div class="uc-meter-labels"><span>0s</span><span>8s+</span></div>' +
+        '</div>';
+
+    const sparkReadings = history.slice(-5);
+    var sparkHtml = '<div class="uc-gap-spark">';
+    for (var si = 0; si < sparkReadings.length; si++) {
+        const g = sparkReadings[si];
+        var dotClass = "uc-spark-dot";
+        if (g < 2.0)      dotClass += " uc-spark-dot--close";
+        else if (g < 4.0) dotClass += " uc-spark-dot--mid";
+        else              dotClass += " uc-spark-dot--far";
+        sparkHtml += '<span class="' + dotClass + '"></span>';
+    }
+    sparkHtml += '</div>';
+
+    return (
+        '<div class="undercut-card">' +
+            '<div class="uc-header">' +
+                '<span class="uc-label">⚡ UNDERCUT IN PROGRESS</span>' +
+                '<span class="uc-drivers">' +
+                    '<span style="color:' + behindColor + '">' + behindTla + '</span>' +
+                    '<span class="uc-vs"> vs </span>' +
+                    '<span style="color:' + aheadColor + '">' + aheadTla + '</span>' +
+                '</span>' +
+            '</div>' +
+            meterHtml +
+            '<div class="uc-bottom-row">' +
+                sparkHtml +
+                '<span class="uc-gap-value">' + currentGap.toFixed(2) + 's</span>' +
+                deltaHtml +
+                '<span class="' + statusClass + '">' + statusLabel + '</span>' +
+            '</div>' +
+        '</div>'
+    );
+}
+
 function renderNormal(driverListLines, timingDataLines, timingAppLines, currentLap, totalLaps, scResult, extrapolatedClock) {
     const tbody = document.getElementById("table-body");
     tbody.innerHTML = "";
@@ -199,7 +284,7 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
                 if (threat.behind === driverNum) {
                     const aheadTla = driverListLines[threat.ahead] ? driverListLines[threat.ahead].Tla : threat.ahead;
                     if (threat.type === "undercut_active") {
-                        detailHtml += '  <span class="threat-badge">⚡ UC ATTEMPT vs ' + aheadTla + ': ' + threat.gap.toFixed(1) + 's gap</span>';
+                        detailHtml += buildUndercutCard(threat, driverListLines);
                     } else if (threat.type === "undercut") {
                         detailHtml += '  <span class="threat-badge">⚡ UC vs ' + aheadTla + ': ' + threat.gap.toFixed(1) + 's gap (+' + threat.netGain.toFixed(1) + 's)</span>';
                     } else if (threat.type === "overcut") {

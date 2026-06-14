@@ -44,6 +44,32 @@ function detectPitStops(pitTimes, timingAppLines, currentLap) {
     }
 }
 
+function computeGapBetween(behindNum, aheadNum, timingDataLines, positionOrder) {
+    const behindTiming = timingDataLines[behindNum];
+    const aheadTiming = timingDataLines[aheadNum];
+    if (!behindTiming || !aheadTiming) return null;
+
+    const behindPos = parseInt(behindTiming.Position);
+    const aheadPos = parseInt(aheadTiming.Position);
+    if (isNaN(behindPos) || isNaN(aheadPos) || behindPos <= aheadPos) return null;
+    if (behindPos - aheadPos > 8) return null;
+
+    const posToDriver = {};
+    for (const entry of positionOrder) posToDriver[entry.pos] = entry.num;
+
+    var totalGap = 0;
+    for (var p = aheadPos + 1; p <= behindPos; p++) {
+        const dn = posToDriver[p];
+        if (!dn) return null;
+        const t = timingDataLines[dn];
+        if (!t || !t.IntervalToPositionAhead || !t.IntervalToPositionAhead.Value) return null;
+        const interval = parseFloat(t.IntervalToPositionAhead.Value);
+        if (isNaN(interval)) return null;
+        totalGap += interval;
+    }
+    return totalGap;
+}
+
 function computeAll(driverListLines, timingDataLines, timingAppLines, timingStatsLines, currentLap, totalLaps, extrapolatedClock, trackStatus) {
     if (!driverListLines || !timingDataLines) return;
 
@@ -59,6 +85,36 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
         }
     }
     state.currentPositionOrder.sort(function (a, b) { return a.pos - b.pos; });
+
+    // Pit entry detection: capture target driver + gap at the moment each driver enters the pit lane
+    for (var _dn in timingDataLines) {
+        var _dt = timingDataLines[_dn];
+        if (!_dt) continue;
+        const nowInPit = _dt.InPit === true;
+        const wasInPit = state.prevInPit[_dn] || false;
+
+        if (nowInPit && !wasInPit) {
+            const myPos = parseInt(_dt.Position);
+            if (!isNaN(myPos)) {
+                var aheadEntry = null;
+                for (const entry of state.currentPositionOrder) {
+                    if (entry.pos === myPos - 1) { aheadEntry = entry; break; }
+                }
+                if (aheadEntry) {
+                    const interval = _dt.IntervalToPositionAhead && _dt.IntervalToPositionAhead.Value
+                        ? parseFloat(_dt.IntervalToPositionAhead.Value) : null;
+                    if (interval !== null && !isNaN(interval) && interval <= 4.0) {
+                        state.pitEntryTargets[_dn] = { target: aheadEntry.num, gapAtEntry: interval, lap: currentLap };
+                    }
+                }
+            }
+        }
+        state.prevInPit[_dn] = nowInPit;
+
+        if (state.pitEntryTargets[_dn] && currentLap - state.pitEntryTargets[_dn].lap > 6) {
+            delete state.pitEntryTargets[_dn];
+        }
+    }
 
     var newDegRates = {};
     var newCounts = {};
@@ -190,9 +246,32 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
     }
 
     const newUndercutThreats = [];
+    const activeUndercutPairs = new Set();
+
+    // Active undercuts: drivers who pitted with a captured target at pit entry
+    for (var _pdn in state.justPittedDrivers) {
+        const entry = state.pitEntryTargets[_pdn];
+        if (!entry) continue;
+
+        var currentGap = computeGapBetween(_pdn, entry.target, timingDataLines, state.currentPositionOrder);
+        if (currentGap === null) currentGap = entry.gapAtEntry;
+
+        newUndercutThreats.push({ behind: _pdn, ahead: entry.target, gap: currentGap, type: "undercut_active" });
+
+        const histKey = _pdn + "_" + entry.target;
+        if (!state.undercutHistory[histKey]) state.undercutHistory[histKey] = [];
+        const hist = state.undercutHistory[histKey];
+        hist.push(currentGap);
+        if (hist.length > 6) hist.shift();
+
+        activeUndercutPairs.add(_pdn + "_" + entry.target);
+    }
+
+    // Predicted undercuts: adjacent pairs not already tracked as active
     for (var i = 0; i < state.currentPositionOrder.length - 1; i++) {
         const driverBehind = state.currentPositionOrder[i + 1];
         const driverAhead = state.currentPositionOrder[i];
+        if (activeUndercutPairs.has(driverBehind.num + "_" + driverAhead.num)) continue;
         const behindTiming = timingDataLines[driverBehind.num];
         if (behindTiming && behindTiming.IntervalToPositionAhead && behindTiming.IntervalToPositionAhead.Value) {
             const gap = parseFloat(behindTiming.IntervalToPositionAhead.Value);
@@ -214,6 +293,15 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
 
     state.predictedWindows = newPredictedWindows;
     state.undercutThreats = newUndercutThreats;
+
+    const activeUCKeys = new Set(
+        newUndercutThreats
+            .filter(function (t) { return t.type === "undercut_active"; })
+            .map(function (t) { return t.behind + "_" + t.ahead; })
+    );
+    for (const key in state.undercutHistory) {
+        if (!activeUCKeys.has(key)) delete state.undercutHistory[key];
+    }
     state.degRates = newDegRates;
     state.compoundCounts = newCounts;
 }
