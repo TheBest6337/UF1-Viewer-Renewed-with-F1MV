@@ -85,8 +85,15 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
             const maxL = windowEntry.maxLap;
             windowText = "Lap " + minL + "-" + maxL;
 
-            if (windowEntry.justPitted) {
+            if (windowEntry.noPitNeeded) {
+                statusText = "FINISH ON TIRES";
+                statusClass = "ok";
+                windowText = "No stop needed";
+            } else if (windowEntry.justPitted) {
                 statusText = "JUST PITTED";
+                statusClass = "ok";
+            } else if (windowEntry.isRaceStart) {
+                statusText = "NEW TIRES";
                 statusClass = "ok";
             } else if (windowEntry.urgency === 2) {
                 statusText = "PIT NOW";
@@ -191,10 +198,12 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
             for (const threat of state.undercutThreats) {
                 if (threat.behind === driverNum) {
                     const aheadTla = driverListLines[threat.ahead] ? driverListLines[threat.ahead].Tla : threat.ahead;
-                    if (threat.type === "undercut") {
-                        detailHtml += '  <span class="threat-badge">⚡ UC: +' + threat.netGain.toFixed(1) + 's vs ' + aheadTla + '</span>';
+                    if (threat.type === "undercut_active") {
+                        detailHtml += '  <span class="threat-badge">⚡ UC ATTEMPT vs ' + aheadTla + ': ' + threat.gap.toFixed(1) + 's gap</span>';
+                    } else if (threat.type === "undercut") {
+                        detailHtml += '  <span class="threat-badge">⚡ UC vs ' + aheadTla + ': ' + threat.gap.toFixed(1) + 's gap (+' + threat.netGain.toFixed(1) + 's)</span>';
                     } else if (threat.type === "overcut") {
-                        detailHtml += '  <span class="threat-badge oc">⚡ OC: -' + threat.paceLoss.toFixed(1) + 's</span>';
+                        detailHtml += '  <span class="threat-badge oc">⚡ OC vs ' + aheadTla + ': -' + threat.paceLoss.toFixed(1) + 's</span>';
                     }
                     break;
                 }
@@ -247,7 +256,7 @@ function renderSCVSC(driverListLines, timingDataLines, timingAppLines, currentLa
         var expectedClass = "";
 
         if (stintAge <= 4) {
-            expectedLabel = "FRESH (just pitted)";
+            expectedLabel = stintData.length <= 1 ? "FRESH (new tires)" : "FRESH (just pitted)";
             expectedClass = "#4caf50";
         } else if (tireUsage > 0.85) {
             expectedLabel = "EXPECTED TO PIT";

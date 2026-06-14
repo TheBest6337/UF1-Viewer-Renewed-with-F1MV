@@ -181,7 +181,7 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
 
         var window = calcPitWindow(
             driverNum, currentLap, stints, drDegRate, drHealth,
-            battleResult.penalty, compoundAvgDeg, teammateDeg
+            battleResult.penalty, compoundAvgDeg, teammateDeg, totalLaps
         );
 
         if (window) {

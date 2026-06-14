@@ -3,7 +3,7 @@ const debug = false;
 const { state, driverJustPitted } = require("./state");
 const { getCompoundLife, getDriverConfig } = require("./config");
 
-function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battlePenalty, compoundAvgDeg, teammateDeg) {
+function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battlePenalty, compoundAvgDeg, teammateDeg, totalLaps) {
     if (!stintData || stintData.length === 0) return null;
 
     const currentStint = stintData[stintData.length - 1];
@@ -14,6 +14,7 @@ function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battle
     const tireAgeRatio = stintAge / compoundLife;
 
     var justPitted = driverJustPitted(driverNum);
+    const isRaceStart = !justPitted && stintAge <= 4 && stintData.length <= 1;
     if (!justPitted && stintAge <= 4) {
         justPitted = true;
     }
@@ -36,7 +37,8 @@ function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battle
             lapsLeft: compoundLife,
             compoundLife: compoundLife,
             effectiveLife: compoundLife,
-            justPitted: true,
+            justPitted: !isRaceStart,
+            isRaceStart: isRaceStart,
             tireAgeRatio: tireAgeRatio,
         };
     }
@@ -87,10 +89,6 @@ function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battle
     var fleetMax = state.fleetMaxCompoundAge[compound] || 0;
     if (fleetMax > effectiveLife) {
         effectiveLife = Math.max(effectiveLife, fleetMax + 3);
-    }
-
-    if ((adjustedDeg === null || adjustedDeg <= 0.05) && stintAge > effectiveLife * 0.9) {
-        effectiveLife = stintAge + Math.max(8, compoundLife * 0.35);
     }
 
     var compoundOrder = ['SOFT', 'MEDIUM', 'HARD', 'INTERMEDIATE', 'WET'];
@@ -149,6 +147,24 @@ function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battle
 
     const minPitLap = Math.max(currentLap + 1, Math.round(currentLap + lapsLeft - safetyMargin));
     const maxPitLap = Math.max(currentLap + 1, Math.round(currentLap + Math.max(0, lapsLeft) + overstayMargin));
+
+    if (totalLaps > 0 && minPitLap > totalLaps - 5) {
+        return {
+            compound: compound,
+            stintAge: stintAge,
+            minLap: minPitLap,
+            maxLap: maxPitLap,
+            urgency: 0,
+            extended: false,
+            lapsLeft: Math.max(0, lapsLeft),
+            compoundLife: compoundLife,
+            effectiveLife: effectiveLife,
+            tireAgeRatio: tireAgeRatio,
+            adjustedDeg: adjustedDeg,
+            originalDeg: degRate,
+            noPitNeeded: true,
+        };
+    }
 
     return {
         compound: compound,
