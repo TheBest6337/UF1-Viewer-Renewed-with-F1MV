@@ -42,6 +42,8 @@ Open the latest release page and download the, for your OS compatible, version o
 
 > https://github.com/TheBest6337/UF1-Viewer-with-F1MV/releases/latest
 
+Prefer to build from source? See [BUILDING.md](BUILDING.md) for instructions on how to compile UF1 Viewer yourself on macOS, Windows, or Linux.
+
 ## Installation
 
 Open the file you just downloaded and follow all the steps in the prompt. These windows will guide you through the installation process.
@@ -57,6 +59,8 @@ xattr -cr "/Applications/UF1-Viewer-Renewed.app"
 Then try opening the app again. You only need to do this once.
 
 > **Want a proper fix?** Eliminating this warning permanently requires an Apple Developer Program membership ($99/year) for code signing and notarization. If you'd like to support that, any contribution helps — see the [Sponsors](https://github.com/sponsors/TheBest6337) section.
+
+> **Not sure if you can trust the binary?** The source code is fully open — you can review it and [build the app yourself](BUILDING.md) from source.
 
 ## Running
 
