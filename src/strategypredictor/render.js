@@ -110,12 +110,12 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
             num: driverNum,
             urgency: urgency,
             minLap: window ? window.minLap : 999,
+            position: parseInt(driverTiming.Position) || 999,
         });
     }
 
     sortedDrivers.sort(function (a, b) {
-        if (b.urgency !== a.urgency) return b.urgency - a.urgency;
-        return a.minLap - b.minLap;
+        return a.position - b.position;
     });
 
     const showDrivers = getDriverConfig("showDrivers", "All");
@@ -300,6 +300,47 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
             tbody.appendChild(detailRow);
         }
 
+    }
+
+    const happeningPanel = document.getElementById("happening-panel");
+    const happeningDrivers = sortedDrivers.filter(function(e) { return e.urgency >= 1; });
+    if (happeningDrivers.length > 0) {
+        var itemsHtml = "";
+        for (const entry of happeningDrivers) {
+            const driverInfo = driverListLines[entry.num];
+            const driverTiming2 = timingDataLines[entry.num];
+            if (!driverInfo || !driverTiming2) continue;
+            const tla = driverInfo.Tla;
+            const teamHex = driverInfo.TeamColour ? "#" + driverInfo.TeamColour : "#5b5b5d";
+            const posDisplay = isNaN(entry.position) ? "--" : "P" + entry.position;
+            const stintData2 = timingAppLines ? (timingAppLines[entry.num] ? timingAppLines[entry.num].Stints : null) : null;
+            const compound2 = stintData2 && stintData2.length > 0 ? stintData2[stintData2.length - 1].Compound : "?";
+            const shortCompound2 = compound2 ? compound2.charAt(0) : "?";
+            const compoundColor2 = getColorFromStatusCodeOrName(compound2.charAt(0)) || "#5b5b5d";
+            const windowEntry2 = state.predictedWindows[entry.num];
+            var hapStatus = "";
+            if (entry.urgency === 2) {
+                hapStatus = "PIT NOW";
+            } else if (windowEntry2) {
+                const untilLap = windowEntry2.minLap - currentLap;
+                hapStatus = "in " + Math.max(0, untilLap) + " lap" + (untilLap !== 1 ? "s" : "");
+            }
+            const itemClass = entry.urgency === 2 ? "happening-item happening-urgent" : "happening-item happening-imminent";
+            itemsHtml +=
+                '<div class="' + itemClass + '">' +
+                    '<span class="happening-pos">' + posDisplay + '</span>' +
+                    '<span class="happening-tla" style="color:' + teamHex + '">' + tla + '</span>' +
+                    '<span class="happening-compound" style="background:' + compoundColor2 + '">' + shortCompound2 + '</span>' +
+                    '<span class="happening-status">' + hapStatus + '</span>' +
+                '</div>';
+        }
+        happeningPanel.innerHTML =
+            '<div class="happening-header"><span class="happening-pulse"></span>HAPPENING</div>' +
+            '<div class="happening-items">' + itemsHtml + '</div>';
+        happeningPanel.classList.remove("hidden");
+    } else {
+        happeningPanel.classList.add("hidden");
+        happeningPanel.innerHTML = "";
     }
 
 }

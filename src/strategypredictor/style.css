@@ -10,6 +10,8 @@ body {
     background-color: #0a0a0faf;
     color: #ffffff;
     font-family: "OF1Bold", sans-serif;
+    display: flex;
+    flex-direction: column;
 }
 
 .drag {
@@ -52,7 +54,8 @@ body {
 }
 
 #table-container {
-    height: calc(100vh - 64px);
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
 }
@@ -444,3 +447,96 @@ tbody td {
 .uc-status--close   { color: #f44336; }
 .uc-status--closing { color: #4caf50; }
 .uc-status--falling { color: rgba(255, 255, 255, 0.45); }
+
+/* ── Happening panel ────────────────────────────────── */
+
+.happening-panel {
+    flex-shrink: 0;
+    background: rgba(0, 0, 0, 0.75);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 6px 10px 7px 10px;
+}
+
+.happening-header {
+    font-family: "SFBold", sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.9px;
+    color: rgba(255, 255, 255, 0.4);
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.happening-pulse {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    background: #f44336;
+    border-radius: 50%;
+    animation: happening-blink 1.4s ease-in-out infinite;
+}
+
+@keyframes happening-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+}
+
+.happening-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.happening-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    border: 1px solid;
+}
+
+.happening-urgent {
+    background: rgba(244, 67, 54, 0.14);
+    border-color: rgba(244, 67, 54, 0.4);
+}
+
+.happening-imminent {
+    background: rgba(253, 216, 53, 0.08);
+    border-color: rgba(253, 216, 53, 0.3);
+}
+
+.happening-pos {
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 10px;
+}
+
+.happening-tla {
+    font-weight: 700;
+    font-size: 12px;
+}
+
+.happening-compound {
+    display: inline-block;
+    padding: 1px 5px;
+    border-radius: 2px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #000;
+}
+
+.happening-status {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.happening-urgent .happening-status {
+    color: #f44336;
+    font-weight: 700;
+}
+
+.happening-imminent .happening-status {
+    color: #fdd835;
+}
