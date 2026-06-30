@@ -37,10 +37,15 @@ function calcSectorHealth(driverNum, timingData, currentLap) {
 
     if (segmentCount === 0) return null;
 
-    const scores = state.driverHistory[driverNum].segmentScores;
-    scores.push({ lap: currentLap, score: currentScore });
+    // Normalize to a per-segment average before storing. The raw sum scales with how
+    // many segments a lap has (~20), which swamped the FRESH/OPTIMAL/DEGRADING/GONE
+    // thresholds below and made GONE the de-facto default regardless of actual pace.
+    const perSegmentScore = currentScore / segmentCount;
 
-    if (scores.length > 5) {
+    const scores = state.driverHistory[driverNum].segmentScores;
+    scores.push({ lap: currentLap, score: perSegmentScore });
+
+    if (scores.length > 8) {
         scores.shift();
     }
 
@@ -55,9 +60,9 @@ function calcSectorHealth(driverNum, timingData, currentLap) {
     const healthScore = totalScore / lapsWithData;
 
     var healthState;
-    if (healthScore > 8) healthState = "FRESH";
-    else if (healthScore >= 3) healthState = "OPTIMAL";
-    else if (healthScore >= -3) healthState = "DEGRADING";
+    if (healthScore > 1.0) healthState = "FRESH";
+    else if (healthScore >= 0.0) healthState = "OPTIMAL";
+    else if (healthScore >= -1.5) healthState = "DEGRADING";
     else healthState = "GONE";
 
     return { score: healthScore, state: healthState, segmentCount: segmentCount };
@@ -105,13 +110,16 @@ function calcDegRate(driverNum, currentLap, sessionData) {
 
     if (!alreadyRecorded && currentLap > 1 && !isInPit && !isOutLap && !isSCLap && lapTimeSec > 0) {
         history.push({ lap: currentLap, time: lapTimeSec, clean: true });
-        if (history.length > 5) {
+        if (history.length > 8) {
             history.shift();
         }
     }
 
+    // Require more than the bare minimum of clean laps before trusting the regression -
+    // a 3-point fit on noisy lap times is what made degRate (and the windows derived
+    // from it) flip sign from one lap to the next.
     const cleanLaps = history.filter(function (entry) { return entry.clean; });
-    if (cleanLaps.length < 3) return null;
+    if (cleanLaps.length < 4) return null;
 
     const points = cleanLaps.map(function (entry) {
         return { x: entry.lap, y: entry.time };

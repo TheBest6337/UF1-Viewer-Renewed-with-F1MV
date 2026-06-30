@@ -73,6 +73,20 @@ function computeGapBetween(behindNum, aheadNum, timingDataLines, positionOrder) 
 function computeAll(driverListLines, timingDataLines, timingAppLines, timingStatsLines, currentLap, totalLaps, extrapolatedClock, trackStatus) {
     if (!driverListLines || !timingDataLines) return;
 
+    // justPittedDrivers also gets cleared inside detectPitStops, but that function only
+    // runs when the live PitLaneTimeCollection feed happens to have data for this lap.
+    // When it doesn't (which is common), a driver's first-stop flag never clears, which
+    // permanently blocks detecting that driver's second and third stops below and leaves
+    // stale entries in the undercut-threat tracking. Clear it unconditionally every lap.
+    for (var _jpd in state.justPittedDrivers) {
+        var _jpdLap = typeof state.justPittedDrivers[_jpd] === "object"
+            ? state.justPittedDrivers[_jpd].lap
+            : state.justPittedDrivers[_jpd];
+        if (currentLap - _jpdLap > 4) {
+            delete state.justPittedDrivers[_jpd];
+        }
+    }
+
     state.currentPositionOrder = [];
     const posMap = {};
     for (const driverNum in timingDataLines) {
@@ -215,7 +229,22 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
             compoundKey = stints[stints.length - 1].Compound || "---";
         }
 
-        if (compoundKey !== "---" && state.previousCompounds[driverNum] && state.previousCompounds[driverNum] !== compoundKey && !state.justPittedDrivers[driverNum]) {
+        // The live timing feed occasionally reports a transient "UNKNOWN" compound for a
+        // lap before resolving to the real one. Treat that as "still on the last known
+        // compound" rather than a fresh value, so it doesn't look like a pit stop and
+        // doesn't make calcPitWindow fall back to the SOFT compound-life default.
+        var effectiveStints = stints;
+        var lastKnownCompound = state.previousCompounds[driverNum];
+        if (compoundKey === "UNKNOWN" && lastKnownCompound && lastKnownCompound !== "---" && lastKnownCompound !== "UNKNOWN") {
+            compoundKey = lastKnownCompound;
+            effectiveStints = stints.slice(0, -1).concat([Object.assign({}, stints[stints.length - 1], { Compound: compoundKey })]);
+        }
+
+        // No "!state.justPittedDrivers[driverNum]" guard here: the previousCompounds
+        // diff above already only fires once per genuine compound transition, so the
+        // guard added nothing except blocking detection of a second stop that happens
+        // within the same 4-lap cooldown as the first (e.g. back-to-back pit stops).
+        if (compoundKey !== "---" && state.previousCompounds[driverNum] && state.previousCompounds[driverNum] !== "---" && state.previousCompounds[driverNum] !== compoundKey) {
             state.justPittedDrivers[driverNum] = currentLap;
             if (state.driverHistory[driverNum]) {
                 state.driverHistory[driverNum].laps = [];
@@ -236,7 +265,7 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
         var compoundAvgDeg = compoundAvgDegMap[compoundKey] || null;
 
         var window = calcPitWindow(
-            driverNum, currentLap, stints, drDegRate, drHealth,
+            driverNum, currentLap, effectiveStints, drDegRate, drHealth,
             battleResult.penalty, compoundAvgDeg, teammateDeg, totalLaps
         );
 

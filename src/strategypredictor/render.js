@@ -236,13 +236,13 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
 
         if (getDriverConfig("showSectorHealth", true) && health) {
             var healthBarColor = "#4caf50";
-            if (health.score > 8) healthBarColor = "#9c27b0";
-            else if (health.score >= 3) healthBarColor = "#4caf50";
-            else if (health.score >= -3) healthBarColor = "#fdd835";
+            if (health.score > 1.0) healthBarColor = "#9c27b0";
+            else if (health.score >= 0.0) healthBarColor = "#4caf50";
+            else if (health.score >= -1.5) healthBarColor = "#fdd835";
             else healthBarColor = "#f44336";
 
-            const healthPct = Math.min(100, Math.max(0, ((health.score + 10) / 20) * 100));
-            detailHtml += '<span style="color:rgba(255,255,255,0.45)">SH</span> <span style="color:' + healthBarColor + '">' + health.score.toFixed(0) + '</span><span class="health-bar"><span class="health-bar-fill" style="width:' + healthPct + '%;background:' + healthBarColor + '"></span></span>';
+            const healthPct = Math.min(100, Math.max(0, ((health.score + 3) / 6) * 100));
+            detailHtml += '<span style="color:rgba(255,255,255,0.45)">SH</span> <span style="color:' + healthBarColor + '">' + health.score.toFixed(1) + '</span><span class="health-bar"><span class="health-bar-fill" style="width:' + healthPct + '%;background:' + healthBarColor + '"></span></span>';
         }
 
         if (getDriverConfig("showDegRates", true) && degRate !== null) {

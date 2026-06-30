@@ -8,6 +8,7 @@ const { parseLapOrSectorTime } = require("../functions/times.js");
 let logFilePath = null;
 let lastLoggedLap = 0;
 let lastDriverPositions = {};
+let reportedPitStops = {};
 
 function initLogFile() {
     const now = new Date();
@@ -238,12 +239,12 @@ function computeHealthFromHistory(history) {
         totalScore += history.segmentScores[i].score;
     }
     var avgScore = totalScore / history.segmentScores.length;
-    var score = Math.round(avgScore * 10) / 10;
+    var score = Math.round(avgScore * 100) / 100;
 
     var state;
-    if (avgScore > 8) state = "FRESH";
-    else if (avgScore >= 3) state = "OPTIMAL";
-    else if (avgScore >= -3) state = "DEGRADING";
+    if (avgScore > 1.0) state = "FRESH";
+    else if (avgScore >= 0.0) state = "OPTIMAL";
+    else if (avgScore >= -1.5) state = "DEGRADING";
     else state = "GONE";
 
     return { score: score, state: state };
@@ -396,7 +397,13 @@ function buildEntry(data) {
                 ? justPittedDrivers[dn].lap
                 : justPittedDrivers[dn];
 
-            if (pittedLap === currentLap) {
+            // The pit flag can be set a tick or two before the lap counter actually
+            // advances to that lap, so an exact-lap match would miss most real stops.
+            // Report each (driver, pittedLap) pair exactly once, the first time we see
+            // it on or shortly after the lap it happened.
+            var reportKey = dn + ":" + pittedLap;
+            if (pittedLap <= currentLap && currentLap - pittedLap <= 3 && !reportedPitStops[reportKey]) {
+                reportedPitStops[reportKey] = true;
                 var pittedDriverInfo = driverListLines[dn];
                 var pittedStintData = timingAppLines && timingAppLines[dn] ? timingAppLines[dn].Stints : null;
                 var compoundOut = "---";

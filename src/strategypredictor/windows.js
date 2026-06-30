@@ -78,8 +78,14 @@ function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battle
         }
     }
 
+    // These three boosts let evidence from OTHER cars push up a driver's own predicted
+    // tyre life. With only 2 corroborating samples and no cap, a couple of cars running
+    // long for strategic reasons (track position, traffic, tyre saving) was enough to
+    // make the model assume the whole field could match them, which is why urgency
+    // stayed at 0 right up to many real second-stint pit stops. Require more samples
+    // before trusting the signal, and cap how far a single outlier can stretch things.
     var extDataSelf = state.compoundExtensionData[compound];
-    if (extDataSelf && extDataSelf.count >= 2) {
+    if (extDataSelf && extDataSelf.count >= 4) {
         var selfAvgRatio = extDataSelf.sum / extDataSelf.count;
         if (selfAvgRatio > 1) {
             effectiveLife = Math.max(effectiveLife, compoundLife * selfAvgRatio);
@@ -88,7 +94,8 @@ function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battle
 
     var fleetMax = state.fleetMaxCompoundAge[compound] || 0;
     if (fleetMax > effectiveLife) {
-        effectiveLife = Math.max(effectiveLife, fleetMax + 3);
+        var cappedFleetFloor = Math.min(fleetMax, effectiveLife * 1.3);
+        effectiveLife = Math.max(effectiveLife, cappedFleetFloor);
     }
 
     var compoundOrder = ['SOFT', 'MEDIUM', 'HARD', 'INTERMEDIATE', 'WET'];
@@ -100,7 +107,7 @@ function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battle
             if (_ci === myCompoundIdx) continue;
             var otherComp = compoundOrder[_ci];
             var extData = state.compoundExtensionData[otherComp];
-            if (extData && extData.count >= 2) {
+            if (extData && extData.count >= 4) {
                 var avgExtRatio = extData.sum / extData.count;
                 var steps = Math.abs(myCompoundIdx - _ci);
                 var crossBoost = (avgExtRatio - 1) * Math.pow(0.5, steps);
@@ -134,7 +141,7 @@ function calcPitWindow(driverNum, currentLap, stintData, degRate, health, battle
     }
 
     var extended = false;
-    if (health && health.score >= 3 && degRate !== null && degRate <= 0) {
+    if (health && health.score >= 1.0 && degRate !== null && degRate <= 0) {
         lapsLeft += 5;
         extended = true;
     }
