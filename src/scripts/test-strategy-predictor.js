@@ -16,6 +16,11 @@
  * Usage:
  *   node src/scripts/test-strategy-predictor.js logs/*.jsonl
  *   node src/scripts/test-strategy-predictor.js logs/austria-strategy-strategy-2026-06-28T12-50-55.jsonl --json
+ *   node src/scripts/test-strategy-predictor.js logs/*.jsonl --polls-per-lap=3
+ *
+ * --polls-per-lap=N replays each log line through computeAll() N times, mimicking
+ * the live 2s poll loop that hits each lap ~45 times. Buffers that accumulate per
+ * poll instead of per lap only show their damage in this mode.
  *
  * Known approximation: the log only stores segment *counts* per color bucket,
  * not the exact per-segment sequence, and only the final lap time, not which
@@ -57,7 +62,11 @@ function freshModules() {
 function loadRace(filePath) {
     const raw = fs.readFileSync(filePath, "utf8").trim();
     if (!raw) return [];
-    return raw.split("\n").map((line) => JSON.parse(line));
+    // Newer recordings start with a header line (no "lap" key) carrying session metadata.
+    return raw
+        .split("\n")
+        .map((line) => JSON.parse(line))
+        .filter((e) => e && typeof e.lap === "number");
 }
 
 function segmentsFromCounts(counts) {
@@ -101,8 +110,11 @@ function extractGroundTruthStops(laps, driverNums) {
     return stops;
 }
 
-function replayRace(laps) {
+function replayRace(laps, pollsPerLap, circuit) {
     const { state, computeAll, logLap } = freshModules();
+    // Lets config.js/priors.js resolve per-circuit priors during replay, exactly as
+    // SessionInfo would live. Undefined means "no priors" (static defaults).
+    state.circuitKey = circuit || null;
 
     const driverNums = Object.keys(laps[0].drivers);
     const groundTruthStops = extractGroundTruthStops(laps, driverNums);
@@ -114,7 +126,8 @@ function replayRace(laps) {
     const realExists = fs.existsSync;
     fs.appendFileSync = function (p, data) {
         if (typeof p === "string" && p.includes(path.join("logs", "strategy-"))) {
-            capturedEntries.push(JSON.parse(data));
+            const parsed = JSON.parse(data);
+            if (typeof parsed.lap === "number") capturedEntries.push(parsed);
             return;
         }
         return realAppend.apply(fs, arguments);
@@ -175,7 +188,9 @@ function replayRace(laps) {
                 timingAppLines[num] = { Stints: hist.map((s) => Object.assign({}, s)) };
             }
 
-            computeAll(driverListLines, timingDataLines, timingAppLines, {}, currentLap, lap.totalLaps, null, trackStatus);
+            for (let poll = 0; poll < pollsPerLap; poll++) {
+                computeAll(driverListLines, timingDataLines, timingAppLines, {}, currentLap, lap.totalLaps, null, trackStatus);
+            }
 
             logLap({
                 currentLap: currentLap,
@@ -214,11 +229,36 @@ function median(values) {
     return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-function evaluateRace(filePath) {
+// Known recording names -> OpenF1 circuit keys, for when --circuit isn't given.
+const FILENAME_CIRCUITS = {
+    barcelona: "catalunya",
+    austria: "spielberg",
+    canada: "montreal",
+    miami: "miami",
+    silverstone: "silverstone",
+    spa: "spafrancorchamps",
+};
+
+function inferCircuit(filePath) {
+    // Newer recordings carry the circuit in their header line.
+    try {
+        const firstLine = fs.readFileSync(filePath, "utf8").split("\n", 1)[0];
+        const header = JSON.parse(firstLine);
+        if (header && header.header && header.circuit) return header.circuit;
+    } catch (err) { /* no header */ }
+    const base = path.basename(filePath).toLowerCase();
+    for (const name in FILENAME_CIRCUITS) {
+        if (base.includes(name)) return FILENAME_CIRCUITS[name];
+    }
+    return null;
+}
+
+function evaluateRace(filePath, pollsPerLap, circuit) {
     const laps = loadRace(filePath);
     if (laps.length === 0) return null;
 
-    const { capturedEntries, groundTruthStops, driverNums } = replayRace(laps);
+    const resolvedCircuit = circuit || inferCircuit(filePath);
+    const { capturedEntries, groundTruthStops, driverNums } = replayRace(laps, pollsPerLap, resolvedCircuit);
     const entryByLap = {};
     for (const e of capturedEntries) entryByLap[e.lap] = e;
 
@@ -259,6 +299,8 @@ function evaluateRace(filePath) {
         windowInRange = 0,
         urgentFlagged = 0;
     const lapErrors = [];
+    const signedErrors = [];
+    const signedByCompound = {};
     for (const s of groundTruthStops) {
         const prevEntry = entryByLap[s.lap - 1];
         if (!prevEntry) continue;
@@ -268,6 +310,73 @@ function evaluateRace(filePath) {
         if (s.lap >= d.predictedWindowMin && s.lap <= d.predictedWindowMax) windowInRange++;
         if (d.predictedUrgency >= 1) urgentFlagged++;
         lapErrors.push(Math.abs(s.lap - d.predictedWindowMin));
+        // + = predicted too late, - = predicted too early
+        const signed = d.predictedWindowMin - s.lap;
+        signedErrors.push(signed);
+        if (!signedByCompound[s.from]) signedByCompound[s.from] = [];
+        signedByCompound[s.from].push(signed);
+    }
+    const signedByCompoundSummary = {};
+    for (const comp in signedByCompound) {
+        const errs = signedByCompound[comp];
+        signedByCompoundSummary[comp] = {
+            mean: errs.reduce((a, b) => a + b, 0) / errs.length,
+            median: median(errs),
+            samples: errs.length,
+        };
+    }
+
+    // --- Early warning: was urgency>=1 or minLap within 3 laps at any of the
+    // 3 laps before each real stop? This is the "did the app tell you a stop
+    // was coming" recall metric. ---
+    let warnedPrior3 = 0,
+        warnedPrior3Checked = 0;
+    for (const s of groundTruthStops) {
+        let sawPrediction = false;
+        let warned = false;
+        for (let dl = 1; dl <= 3; dl++) {
+            const e = entryByLap[s.lap - dl];
+            if (!e) continue;
+            const d = e.drivers[s.driverNum];
+            if (!d || d.predictedWindowMin == null) continue;
+            sawPrediction = true;
+            if (d.predictedUrgency >= 1 || d.predictedWindowMin - e.lap <= 3) warned = true;
+        }
+        if (sawPrediction) {
+            warnedPrior3Checked++;
+            if (warned) warnedPrior3++;
+        }
+    }
+
+    // --- Published-window stability: fraction of lap-to-lap transitions where
+    // predictedWindowMin did not move, excluding laps where an event legitimately
+    // shifts the window (that driver's compound changed / in pit, or the track
+    // status changed between the two laps). ---
+    let stableTransitions = 0,
+        totalTransitions = 0;
+    for (const num of driverNums) {
+        let prevEntry = null;
+        for (const e of capturedEntries) {
+            const d = e.drivers[num];
+            if (!d || d.predictedWindowMin == null) {
+                prevEntry = null;
+                continue;
+            }
+            if (prevEntry) {
+                const pd = prevEntry.drivers[num];
+                const eventLap =
+                    pd.compound !== d.compound ||
+                    d.tyreAge < pd.tyreAge || // same-compound stop: tyre age reset
+                    pd.inPit ||
+                    d.inPit ||
+                    prevEntry.trackStatus !== e.trackStatus;
+                if (!eventLap) {
+                    totalTransitions++;
+                    if (d.predictedWindowMin === pd.predictedWindowMin) stableTransitions++;
+                }
+            }
+            prevEntry = e;
+        }
     }
 
     // --- Window volatility ---
@@ -318,6 +427,7 @@ function evaluateRace(filePath) {
 
     return {
         file: path.basename(filePath),
+        circuit: resolvedCircuit || null,
         laps: laps.length,
         drivers: driverNums.length,
         pitDetection: {
@@ -333,6 +443,11 @@ function evaluateRace(filePath) {
             inRangeOneLapPrior: windowInRange,
             urgentFlaggedOneLapPrior: urgentFlagged,
             medianAbsLapError: median(lapErrors),
+            meanSignedError: signedErrors.length ? signedErrors.reduce((a, b) => a + b, 0) / signedErrors.length : null,
+            medianSignedError: median(signedErrors),
+            signedErrorByCompound: signedByCompoundSummary,
+            warnedPrior3: warnedPrior3,
+            warnedPrior3Checked: warnedPrior3Checked,
         },
         volatility: {
             avgAbsLapToLapChange: minLapChanges.length
@@ -340,6 +455,9 @@ function evaluateRace(filePath) {
                 : null,
             samples: minLapChanges.length,
             jumpsOf10PlusLaps: bigJumps,
+            stabilityPct: totalTransitions ? stableTransitions / totalTransitions : null,
+            stableTransitions: stableTransitions,
+            totalTransitions: totalTransitions,
         },
         degRateSignFlipRate: flipTotal ? flips / flipTotal : null,
         extendedBonusRate: extendedTotal ? extendedCount / extendedTotal : null,
@@ -387,13 +505,27 @@ function printReport(r) {
             " laps"
     );
     console.log(
+        "Early warning: " +
+            pct(r.windowAccuracy.warnedPrior3, r.windowAccuracy.warnedPrior3Checked) +
+            " of stops flagged in the prior 3 laps | signed error (predMin-actual, +=late): mean " +
+            (r.windowAccuracy.meanSignedError != null ? r.windowAccuracy.meanSignedError.toFixed(1) : "n/a") +
+            ", median " +
+            (r.windowAccuracy.medianSignedError != null ? r.windowAccuracy.medianSignedError.toFixed(1) : "n/a") +
+            " " +
+            Object.keys(r.windowAccuracy.signedErrorByCompound)
+                .map((c) => c + " " + r.windowAccuracy.signedErrorByCompound[c].median.toFixed(0) + " (n=" + r.windowAccuracy.signedErrorByCompound[c].samples + ")")
+                .join(", ")
+    );
+    console.log(
         "Window volatility: avg lap-to-lap windowMin change = " +
             (r.volatility.avgAbsLapToLapChange != null ? r.volatility.avgAbsLapToLapChange.toFixed(2) : "n/a") +
             " laps (" +
             r.volatility.jumpsOf10PlusLaps +
             "/" +
             r.volatility.samples +
-            " jumps >=10 laps)"
+            " jumps >=10 laps), stable on " +
+            pct(r.volatility.stableTransitions, r.volatility.totalTransitions) +
+            " of non-event lap transitions"
     );
     console.log(
         "degRate sign-flip rate: " +
@@ -410,16 +542,32 @@ function sumDist(dist) {
 function main() {
     const args = process.argv.slice(2);
     const jsonOut = args.includes("--json");
-    const files = args.filter((a) => a !== "--json");
+    let pollsPerLap = 1;
+    let circuits = [];
+    const files = [];
+    for (let i = 0; i < args.length; i++) {
+        const a = args[i];
+        if (a === "--json") continue;
+        if (a.startsWith("--polls-per-lap=")) {
+            pollsPerLap = Math.max(1, parseInt(a.split("=")[1], 10) || 1);
+        } else if (a === "--polls-per-lap") {
+            pollsPerLap = Math.max(1, parseInt(args[++i], 10) || 1);
+        } else if (a.startsWith("--circuit=")) {
+            circuits = a.split("=")[1].split(",");
+        } else {
+            files.push(a);
+        }
+    }
 
     if (files.length === 0) {
-        console.error("Usage: node src/scripts/test-strategy-predictor.js logs/*.jsonl [--json]");
+        console.error("Usage: node src/scripts/test-strategy-predictor.js logs/*.jsonl [--json] [--polls-per-lap=N] [--circuit=key | --circuit=key1,key2,... positional per file]");
         process.exit(1);
     }
 
     const results = [];
-    for (const f of files) {
-        const r = evaluateRace(f);
+    for (let fi = 0; fi < files.length; fi++) {
+        const circuit = circuits.length === 1 ? circuits[0] : circuits[fi];
+        const r = evaluateRace(files[fi], pollsPerLap, circuit);
         if (r) results.push(r);
     }
 
@@ -443,4 +591,6 @@ function main() {
     }
 }
 
-main();
+if (require.main === module) main();
+
+module.exports = { loadRace, replayRace, evaluateRace };

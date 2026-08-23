@@ -17,6 +17,21 @@ function initLogFile() {
     if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
     logFilePath = path.join(logsDir, "strategy-" + timestamp + ".jsonl");
     if (debug) console.log("[strategy-log] writing to:", logFilePath);
+
+    // Header line (no "lap" key, so replay tooling can tell it apart from lap
+    // entries): session metadata that older recordings were missing.
+    try {
+        const { state } = require("./state");
+        fs.appendFileSync(logFilePath, JSON.stringify({
+            header: true,
+            recordedAt: now.toISOString(),
+            circuit: state.circuitKey || null,
+            sessionType: state.sessionType || null,
+            priorPitLoss: state.priorPitLoss || null,
+        }) + "\n");
+    } catch (err) {
+        if (debug) console.log("[strategy-log] header error:", err);
+    }
 }
 
 function getTrackStatusLabel(status) {
@@ -368,6 +383,12 @@ function buildEntry(data) {
                 ? Math.round(window.adjustedDeg * 1000) / 1000
                 : null,
             predictedExtended: window ? window.extended : null,
+            predictedInternalMin: window && window.internalMin !== undefined ? window.internalMin : null,
+            predictedInternalMax: window && window.internalMax !== undefined ? window.internalMax : null,
+            predictedConfidence: window && window.confidence !== undefined && window.confidence !== null
+                ? Math.round(window.confidence * 100) / 100
+                : null,
+            predictedRespondTo: window && window.respondTo ? window.respondTo.rival : null,
             inPit: driverTiming.InPit || false,
             retired: driverTiming.Retired || false,
             stopped: driverTiming.Stopped || false,

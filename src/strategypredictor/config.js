@@ -38,12 +38,17 @@ function getDriverConfig(key, defaultValue) {
 }
 
 function getCompoundLife(compound) {
+    // A user-configured value always wins; otherwise the circuit prior (median tyre
+    // age at which cars really pitted this compound at this track, from OpenF1
+    // history), else the static default. The old static defaults (M=30, H=42) ran
+    // 12-24 laps longer than real stint lengths, which is why predictions skewed late.
+    const { getPriorCompoundLife } = require("./priors");
     switch (compound) {
-        case "SOFT": return getDriverConfig("softMaxLaps", 16);
-        case "MEDIUM": return getDriverConfig("mediumMaxLaps", 30);
-        case "HARD": return getDriverConfig("hardMaxLaps", 42);
-        case "INTERMEDIATE": return getDriverConfig("intermediateMaxLaps", 20);
-        case "WET": return getDriverConfig("wetMaxLaps", 15);
+        case "SOFT": return getDriverConfig("softMaxLaps", getPriorCompoundLife("SOFT", 16));
+        case "MEDIUM": return getDriverConfig("mediumMaxLaps", getPriorCompoundLife("MEDIUM", 30));
+        case "HARD": return getDriverConfig("hardMaxLaps", getPriorCompoundLife("HARD", 42));
+        case "INTERMEDIATE": return getDriverConfig("intermediateMaxLaps", getPriorCompoundLife("INTERMEDIATE", 20));
+        case "WET": return getDriverConfig("wetMaxLaps", getPriorCompoundLife("WET", 15));
         default: return getDriverConfig("softMaxLaps", 16);
     }
 }

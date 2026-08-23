@@ -1,10 +1,10 @@
 const debug = false;
 
 const { state } = require("./state");
-const { getCompoundLife } = require("./config");
 const { calcSectorHealth, calcDegRate } = require("./degradation");
 const { detectBattles } = require("./battles");
 const { calcPitWindow } = require("./windows");
+const { publishWindow } = require("./stability");
 const { detectUndercutOvercut } = require("./threats");
 
 function accumulateData(driverNum, timingData, timingAppLines, currentLap) {
@@ -15,6 +15,35 @@ function accumulateData(driverNum, timingData, timingAppLines, currentLap) {
 function getAllStints(timingAppLines, driverNum) {
     if (!timingAppLines || !timingAppLines[driverNum]) return null;
     return timingAppLines[driverNum].Stints || null;
+}
+
+// Fires exactly once per registered pit stop (both detection paths dedupe), so the
+// per-stint history buffers restart from zero for the new stint.
+function resetStintHistory(driverNum) {
+    if (!state.driverHistory[driverNum]) return;
+    state.driverHistory[driverNum].laps = [];
+    state.driverHistory[driverNum].segmentScores = [];
+    state.driverHistory[driverNum].positions = [];
+    state.driverHistory[driverNum].dirtyAirHistory = [];
+    state.driverHistory[driverNum].degRate = null;
+    state.driverHistory[driverNum].degEma = null;
+    state.driverHistory[driverNum].degConfidence = 0;
+}
+
+// Live evidence of real tyre life: the wear age of the set that just came off.
+// Keyed by stint count so the two detection paths (PitTimes and compound change)
+// can't both record the same stop.
+function recordObservedPitAge(driverNum, stints) {
+    if (!stints || stints.length < 2) return;
+    if (state.lastPitAgeStintCount[driverNum] === stints.length) return;
+    state.lastPitAgeStintCount[driverNum] = stints.length;
+
+    var prevStint = stints[stints.length - 2];
+    var comp = prevStint.Compound;
+    var age = prevStint.TotalLaps;
+    if (!comp || comp === "---" || comp === "UNKNOWN" || age == null || age < 3) return;
+    if (!state.observedPitAges[comp]) state.observedPitAges[comp] = [];
+    state.observedPitAges[comp].push(age);
 }
 
 function detectPitStops(pitTimes, timingAppLines, currentLap) {
@@ -33,7 +62,9 @@ function detectPitStops(pitTimes, timingAppLines, currentLap) {
 
         if (lastStint.StartLaps === lastStint.TotalLaps) {
             state.oldPitstops.push(pitstopString);
+            if (!state.justPittedDrivers[driverNum]) resetStintHistory(driverNum);
             state.justPittedDrivers[driverNum] = currentLap;
+            recordObservedPitAge(driverNum, stints);
         }
     }
 
@@ -100,7 +131,9 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
     }
     state.currentPositionOrder.sort(function (a, b) { return a.pos - b.pos; });
 
-    // Pit entry detection: capture target driver + gap at the moment each driver enters the pit lane
+    // Pit entry detection from InPit edges — the earliest live pit signal. On entry:
+    // record the event, capture the undercut target, and flag every driver ahead
+    // within undercut range to respond (their window is forced OPEN this poll).
     for (var _dn in timingDataLines) {
         var _dt = timingDataLines[_dn];
         if (!_dt) continue;
@@ -108,6 +141,9 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
         const wasInPit = state.prevInPit[_dn] || false;
 
         if (nowInPit && !wasInPit) {
+            if (!state.pitEvents[_dn]) state.pitEvents[_dn] = [];
+            state.pitEvents[_dn].push({ entryLap: currentLap });
+
             const myPos = parseInt(_dt.Position);
             if (!isNaN(myPos)) {
                 var aheadEntry = null;
@@ -121,6 +157,24 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
                         state.pitEntryTargets[_dn] = { target: aheadEntry.num, gapAtEntry: interval, lap: currentLap };
                     }
                 }
+
+                // Rival-pit response: this driver rejoins ~avgPitLoss behind their old
+                // position, so anyone ahead by less than that is now under undercut
+                // threat and should consider covering.
+                const posToDriverAhead = {};
+                for (const entry of state.currentPositionOrder) posToDriverAhead[entry.pos] = entry.num;
+                for (var _p = myPos - 1; _p >= 1 && myPos - _p <= 8; _p--) {
+                    const yNum = posToDriverAhead[_p];
+                    if (!yNum) break;
+                    const gapToY = computeGapBetween(_dn, yNum, timingDataLines, state.currentPositionOrder);
+                    if (gapToY === null || gapToY > state.avgPitLoss + 2) break;
+                    state.respondTo[yNum] = { rival: _dn, setLap: currentLap, expiresLap: currentLap + 3 };
+                }
+            }
+        } else if (!nowInPit && wasInPit) {
+            const evts = state.pitEvents[_dn];
+            if (evts && evts.length > 0 && evts[evts.length - 1].exitLap == null) {
+                evts[evts.length - 1].exitLap = currentLap;
             }
         }
         state.prevInPit[_dn] = nowInPit;
@@ -132,8 +186,16 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
 
     var newDegRates = {};
     var newCounts = {};
+    var newConfSums = {};
     var newPredictedWindows = {};
     var allDegRates = {};
+
+    // Only SC/VSC/red transitions republish every window immediately (bypassing the
+    // stability layer's hysteresis) — plain yellow flickers don't move pit strategy.
+    var wasNeutralized = state.publishTrackStatus === "4" || state.publishTrackStatus === "5" || state.publishTrackStatus === "6" || state.publishTrackStatus === "7";
+    var nowNeutralized = trackStatus === "4" || trackStatus === "5" || trackStatus === "6" || trackStatus === "7";
+    var trackStatusEvent = state.publishTrackStatus !== undefined && wasNeutralized !== nowNeutralized;
+    state.publishTrackStatus = trackStatus;
 
     var teammateMap = {};
     var teamDrivers = {};
@@ -174,13 +236,22 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
         if (degRate !== null && degRate !== undefined && compound !== "---") {
             if (!newDegRates[compound]) newDegRates[compound] = 0;
             if (!newCounts[compound]) newCounts[compound] = 0;
+            if (!newConfSums[compound]) newConfSums[compound] = 0;
             newDegRates[compound] += degRate;
             newCounts[compound]++;
+            newConfSums[compound] += (state.driverHistory[driverNum] && state.driverHistory[driverNum].degConfidence) || 0;
         }
     }
 
     state.degRates = newDegRates;
     state.compoundCounts = newCounts;
+    // How mature the fleet's own deg estimates are, per compound (0..1). Early in a
+    // race/stint cycle the fleet average is built from junk 4-lap fits and should not
+    // displace the historical prior all at once.
+    state.compoundConfAvg = {};
+    for (var _cc in newCounts) {
+        if (newCounts[_cc] > 0) state.compoundConfAvg[_cc] = newConfSums[_cc] / newCounts[_cc];
+    }
 
     var compoundAvgDegMap = {};
     for (var comp in newCounts) {
@@ -189,28 +260,23 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
         }
     }
 
-    state.compoundExtensionData = {};
-    state.fleetMaxCompoundAge = {};
+    // Long low-deg runs per compound among cars CURRENTLY on track. Rebuilt fresh each
+    // poll so it is non-monotonic: when the long-runner pits, the floor it provided
+    // disappears (unlike the old fleetMaxCompoundAge running max, which grew +1 every
+    // lap by construction and made every window recede).
+    state.fleetCurrentLongRun = {};
     for (var _dn in allDegRates) {
         var _stints = getAllStints(timingAppLines, _dn);
         if (!_stints || _stints.length === 0) continue;
         var _stint = _stints[_stints.length - 1];
         var _comp = _stint.Compound || "---";
-        if (_comp === "---") continue;
+        if (_comp === "---" || _comp === "UNKNOWN") continue;
         var _age = _stint.TotalLaps != null ? _stint.TotalLaps : 0;
-        var _nomLife = getCompoundLife(_comp);
         var _deg = allDegRates[_dn] ? allDegRates[_dn].deg : null;
 
-        if (_age > 5 && (_deg === null || _deg <= 0.10)) {
-            if (!state.fleetMaxCompoundAge[_comp] || _age > state.fleetMaxCompoundAge[_comp]) {
-                state.fleetMaxCompoundAge[_comp] = _age;
-            }
-        }
-
-        if (_age >= _nomLife && (_deg === null || _deg <= 0.05)) {
-            if (!state.compoundExtensionData[_comp]) state.compoundExtensionData[_comp] = { sum: 0, count: 0 };
-            state.compoundExtensionData[_comp].sum += _age / _nomLife;
-            state.compoundExtensionData[_comp].count++;
+        if (_age > 5 && (_deg === null || _deg < 0.05)) {
+            if (!state.fleetCurrentLongRun[_comp]) state.fleetCurrentLongRun[_comp] = [];
+            state.fleetCurrentLongRun[_comp].push({ age: _age, driver: _dn });
         }
     }
 
@@ -246,13 +312,8 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
         // within the same 4-lap cooldown as the first (e.g. back-to-back pit stops).
         if (compoundKey !== "---" && state.previousCompounds[driverNum] && state.previousCompounds[driverNum] !== "---" && state.previousCompounds[driverNum] !== compoundKey) {
             state.justPittedDrivers[driverNum] = currentLap;
-            if (state.driverHistory[driverNum]) {
-                state.driverHistory[driverNum].laps = [];
-                state.driverHistory[driverNum].segmentScores = [];
-                state.driverHistory[driverNum].positions = [];
-                state.driverHistory[driverNum].dirtyAirHistory = [];
-                state.driverHistory[driverNum].degRate = null;
-            }
+            resetStintHistory(driverNum);
+            recordObservedPitAge(driverNum, stints);
         }
         state.previousCompounds[driverNum] = compoundKey;
 
@@ -269,8 +330,22 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
             battleResult.penalty, compoundAvgDeg, teammateDeg, totalLaps
         );
 
+        var respond = state.respondTo[driverNum];
+        if (respond && currentLap > respond.expiresLap) {
+            delete state.respondTo[driverNum];
+            respond = null;
+        }
+
         if (window) {
-            newPredictedWindows[driverNum] = window;
+            state.driverEstimates[driverNum] = window;
+            var eventOverride = trackStatusEvent ||
+                state.justPittedDrivers[driverNum] === currentLap ||
+                (respond && respond.setLap === currentLap);
+            var published = publishWindow(driverNum, window, currentLap, eventOverride);
+            if (published) {
+                if (respond) published.respondTo = respond;
+                newPredictedWindows[driverNum] = published;
+            }
         }
     }
 
@@ -296,19 +371,24 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
         activeUndercutPairs.add(_pdn + "_" + entry.target);
     }
 
-    // Predicted undercuts: adjacent pairs not already tracked as active
-    for (var i = 0; i < state.currentPositionOrder.length - 1; i++) {
-        const driverBehind = state.currentPositionOrder[i + 1];
-        const driverAhead = state.currentPositionOrder[i];
-        if (activeUndercutPairs.has(driverBehind.num + "_" + driverAhead.num)) continue;
-        const behindTiming = timingDataLines[driverBehind.num];
-        if (behindTiming && behindTiming.IntervalToPositionAhead && behindTiming.IntervalToPositionAhead.Value) {
-            const gap = parseFloat(behindTiming.IntervalToPositionAhead.Value);
-            const threat = detectUndercutOvercut(driverBehind.num, driverAhead.num, gap, timingDataLines, currentLap);
+    // Predicted undercuts/overcuts: for each driver, every rival ahead within pit-loss
+    // range — not just the adjacent car; a genuine undercut threat can sit 2-3
+    // positions back. Nearest rival first so the display shows the closest threat.
+    const posToDriverNum = {};
+    for (const entry of state.currentPositionOrder) posToDriverNum[entry.pos] = entry.num;
+    for (var i = 1; i < state.currentPositionOrder.length; i++) {
+        const driverBehind = state.currentPositionOrder[i];
+        for (var aheadPos = driverBehind.pos - 1; aheadPos >= 1 && driverBehind.pos - aheadPos <= 8; aheadPos--) {
+            const aheadNum = posToDriverNum[aheadPos];
+            if (!aheadNum) break;
+            if (activeUndercutPairs.has(driverBehind.num + "_" + aheadNum)) continue;
+            const gap = computeGapBetween(driverBehind.num, aheadNum, timingDataLines, state.currentPositionOrder);
+            if (gap === null || gap > state.avgPitLoss + 3) break;
+            const threat = detectUndercutOvercut(driverBehind.num, aheadNum, gap, timingDataLines, currentLap);
             if (threat) {
                 newUndercutThreats.push({
                     behind: driverBehind.num,
-                    ahead: driverAhead.num,
+                    ahead: aheadNum,
                     gap: gap,
                     type: threat.type,
                     netGain: threat.netGain,

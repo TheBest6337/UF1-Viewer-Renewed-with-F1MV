@@ -1,0 +1,791 @@
+{
+  "catalunya": {
+    "displayName": "Catalunya",
+    "compounds": {
+      "MEDIUM": {
+        "medianPitAge": 24,
+        "pitAgeSamples": 50,
+        "degSlope": 0.016,
+        "degSamples": 57,
+        "paceOffset": -0.1
+      },
+      "HARD": {
+        "medianPitAge": 21.5,
+        "pitAgeSamples": 14,
+        "degSlope": 0.015,
+        "degSamples": 36,
+        "paceOffset": -0.92
+      },
+      "SOFT": {
+        "medianPitAge": 16,
+        "pitAgeSamples": 75,
+        "degSlope": -0.015,
+        "degSamples": 80,
+        "paceOffset": 0.44
+      }
+    },
+    "laneDurationMedian": 22.3,
+    "seasons": [
+      "2023",
+      "2024",
+      "2025"
+    ],
+    "totalSamples": 139
+  },
+  "silverstone": {
+    "displayName": "Silverstone",
+    "compounds": {
+      "MEDIUM": {
+        "medianPitAge": 29,
+        "pitAgeSamples": 15,
+        "degSlope": -0.086,
+        "degSamples": 17,
+        "paceOffset": 0.16
+      },
+      "HARD": {
+        "medianPitAge": 14,
+        "pitAgeSamples": 5,
+        "degSlope": -0.001,
+        "degSamples": 7,
+        "paceOffset": -0.45
+      },
+      "SOFT": {
+        "medianPitAge": 20.5,
+        "pitAgeSamples": 4,
+        "degSlope": -0.04,
+        "degSamples": 16,
+        "paceOffset": -1.23
+      },
+      "INTERMEDIATE": {
+        "medianPitAge": 11,
+        "pitAgeSamples": 49,
+        "degSlope": -0.199,
+        "degSamples": 43
+      }
+    },
+    "laneDurationMedian": 29.1,
+    "seasons": [
+      "2023",
+      "2024 (wet: INT/WET data only)",
+      "2025 (wet: INT/WET data only)"
+    ],
+    "totalSamples": 73
+  },
+  "spafrancorchamps": {
+    "displayName": "Spa-Francorchamps",
+    "compounds": {
+      "SOFT": {
+        "medianPitAge": 8,
+        "pitAgeSamples": 16,
+        "degSlope": 0.027,
+        "degSamples": 21,
+        "paceOffset": -0.44
+      },
+      "MEDIUM": {
+        "medianPitAge": 13,
+        "pitAgeSamples": 43,
+        "degSlope": 0.015,
+        "degSamples": 45,
+        "paceOffset": 0.86
+      },
+      "HARD": {
+        "medianPitAge": 19,
+        "pitAgeSamples": 16,
+        "degSlope": -0.025,
+        "degSamples": 27,
+        "paceOffset": -0.49
+      }
+    },
+    "laneDurationMedian": 23.3,
+    "seasons": [
+      "2023",
+      "2024",
+      "2025 (wet: INT/WET data only)"
+    ],
+    "totalSamples": 75
+  },
+  "sakhir": {
+    "displayName": "Sakhir",
+    "compounds": {
+      "SOFT": {
+        "medianPitAge": 14,
+        "pitAgeSamples": 61,
+        "degSlope": -0.059,
+        "degSamples": 73,
+        "paceOffset": 0.9
+      },
+      "HARD": {
+        "medianPitAge": 18,
+        "pitAgeSamples": 52,
+        "degSlope": 0.041,
+        "degSamples": 83,
+        "paceOffset": -0.27
+      },
+      "MEDIUM": {
+        "medianPitAge": 18,
+        "pitAgeSamples": 21,
+        "degSlope": 0.035,
+        "degSamples": 27,
+        "paceOffset": 0.07
+      }
+    },
+    "laneDurationMedian": 24.8,
+    "seasons": [
+      "2023",
+      "2024",
+      "2025"
+    ],
+    "totalSamples": 134
+  },
+  "jeddah": {
+    "displayName": "Jeddah",
+    "compounds": {
+      "MEDIUM": {
+        "medianPitAge": 17,
+        "pitAgeSamples": 43,
+        "degSlope": -0.083,
+        "degSamples": 38,
+        "paceOffset": 0.75
+      },
+      "HARD": {
+        "medianPitAge": 28,
+        "pitAgeSamples": 11,
+        "degSlope": -0.067,
+        "degSamples": 52,
+        "paceOffset": -0.33
+      },
+      "SOFT": {
+        "degSlope": 0.02,
+        "degSamples": 6,
+        "paceOffset": -1.33
+      }
+    },
+    "laneDurationMedian": 21.5,
+    "seasons": [
+      "2023",
+      "2024",
+      "2025"
+    ],
+    "totalSamples": 57
+  },
+  "melbourne": {
+    "displayName": "Melbourne",
+    "compounds": {
+      "MEDIUM": {
+        "medianPitAge": 9,
+        "pitAgeSamples": 28,
+        "degSlope": -0.084,
+        "degSamples": 10,
+        "paceOffset": 0.66
+      },
+      "HARD": {
+        "medianPitAge": 28,
+        "pitAgeSamples": 39,
+        "degSlope": -0.031,
+        "degSamples": 52,
+        "paceOffset": -0.34
+      },
+      "SOFT": {
+        "medianPitAge": 6.5,
+        "pitAgeSamples": 18
+      },
+      "INTERMEDIATE": {
+        "medianPitAge": 5,
+        "pitAgeSamples": 36,
+        "degSlope": -0.242,
+        "degSamples": 18
+      }
+    },
+    "laneDurationMedian": 17.7,
+    "seasons": [
+      "2023",
+      "2024",
+      "2025 (wet: INT/WET data only)"
+    ],
+    "totalSamples": 121
+  },
+  "baku": {
+    "displayName": "Baku",
+    "compounds": {
+      "MEDIUM": {
+        "medianPitAge": 12,
+        "pitAgeSamples": 40,
+        "degSlope": -0.134,
+        "degSamples": 38,
+        "paceOffset": 0.87
+      },
+      "HARD": {
+        "medianPitAge": 36.5,
+        "pitAgeSamples": 22,
+        "degSlope": -0.061,
+        "degSamples": 59,
+        "paceOffset": -0.2
+      }
+    },
+    "laneDurationMedian": 20.6,
+    "seasons": [
+      "2023",
+      "2024",
+      "2025"
+    ],
+    "totalSamples": 62
+  },
+  "miami": {
+    "displayName": "Miami",
+    "compounds": {
+      "HARD": {
+        "medianPitAge": 36,
+        "pitAgeSamples": 23,
+        "degSlope": -0.038,
+        "degSamples": 55,
+        "paceOffset": -0.07
+      },
+      "MEDIUM": {
+        "medianPitAge": 22.5,
+        "pitAgeSamples": 38,
+        "degSlope": -0.064,
+        "degSamples": 52,
+        "paceOffset": 0.44
+      }
+    },
+    "laneDurationMedian": 22.5,
+    "seasons": [
+      "2023",
+      "2024",
+      "2025"
+    ],
+    "totalSamples": 64
+  },
+  "montecarlo": {
+    "displayName": "Monte Carlo",
+    "compounds": {
+      "MEDIUM": {
+        "medianPitAge": 20,
+        "pitAgeSamples": 31,
+        "degSlope": -0.027,
+        "degSamples": 35,
+        "paceOffset": -0.09
+      },
+      "HARD": {
+        "medianPitAge": 33.5,
+        "pitAgeSamples": 34,
+        "degSlope": -0.032,
+        "degSamples": 50,
+        "paceOffset": -0.21
+      },
+      "SOFT": {
+        "medianPitAge": 10.5,
+        "pitAgeSamples": 4,
+        "degSlope": 0.02,
+        "degSamples": 5,
+        "paceOffset": -1.21
+      },
+      "INTERMEDIATE": {
+        "paceOffset": 8.62
+      }
+    },
+    "laneDurationMedian": 24.3,
+    "seasons": [
+      "2023",
+      "2024",
+      "2025"
+    ],
+    "totalSamples": 72
+  },
+  "montreal": {
+    "displayName": "Montreal",
+    "compounds": {
+      "MEDIUM": {
+        "medianPitAge": 13.5,
+        "pitAgeSamples": 44,
+        "degSlope": -0.034,
+        "degSamples": 40,
+        "paceOffset": 0.37
+      },
+      "HARD": {
+        "medianPitAge": 29,
+        "pitAgeSamples": 52,
+        "degSlope": -0.022,
+        "degSamples": 57,
+        "paceOffset": 0
+      },
+      "INTERMEDIATE": {
+        "medianPitAge": 22,
+        "pitAgeSamples": 35,
+        "degSlope": -0.403,
+        "degSamples": 15
+      }
+    },
+    "laneDurationMedian": 23.7,
+    "seasons": [
+      "2023",
+      "2024 (wet: INT/WET data only)",
+      "2025"
+    ],
+    "totalSamples": 135
+  },
+  "spielberg": {
+    "displayName": "Spielberg",
+    "compounds": {
+      "MEDIUM": {
+        "medianPitAge": 20,
+        "pitAgeSamples": 66,
+        "degSlope": 0.031,
+        "degSamples": 87,
+        "paceOffset": 0.15
+      },
+      "HARD": {
+        "medianPitAge": 27,
+        "pitAgeSamples": 46,
+        "degSlope": 0.032,
+        "degSamples": 72,
+        "paceOffset": -0.11
+      },
+      "SOFT": {
+        "medianPitAge": 12.5,
+        "pitAgeSamples": 4,
+        "degSlope": -0.022,
+        "degSamples": 6,
+        "paceOffset": 0.1
+      }
+    },
+    "laneDurationMedian": 21.7,
+    "seasons": [
+      "2023",
+      "2024",
+      "2025"
+    ],
+    "totalSamples": 116
+  },
+  "hungaroring": {
+    "displayName": "Hungaroring",
+    "compounds": {
+      "MEDIUM": {
+        "medianPitAge": 19.5,
+        "pitAgeSamples": 48,
+        "degSlope": -0.056,
+        "degSamples": 59,
+        "paceOffset": 0.46
+      },
+      "HARD": {
+        "medianPitAge": 28,
+        "pitAgeSamples": 45,
+        "degSlope": 0.029,
+        "degSamples": 82,
+        "paceOffset": -0.28
+      },
+      "SOFT": {
+        "medianPitAge": 9,
+        "pitAgeSamples": 11,
+        "degSlope": -0.212,
+        "degSamples": 5,
+        "paceOffset": 1.06
+      }
+    },
+    "laneDurationMedian": 21.8,
+    "seasons": [
+      "2023",
+      "2024",
+      "2025"
+    ],
+    "totalSamples": 104
+  },
+  "zandvoort": {
+    "displayName": "Zandvoort",
+    "compounds": {
+      "INTERMEDIATE": {
+        "medianPitAge": 8,
+        "pitAgeSamples": 41,
+        "degSlope": -0.132,
+        "degSamples": 11
+      },
+      "MEDIUM": {
+        "medianPitAge": 23,
+        "pitAgeSamples": 32,
+        "degSlope": -0.069,
+        "degSamples": 38,
+        "paceOffset": 0.42
+      },
+      "HARD": {
+        "medianPitAge": 30,
+        "pitAgeSamples": 23,
+        "degSlope": -0.01,
+        "degSamples": 40,
+        "paceOffset": -0.39
+      },
+      "SOFT": {
+        "medianPitAge": 19,
+        "pitAgeSamples": 10,
+        "degSlope": -0.011,
+        "degSamples": 20,
+        "paceOffset": -1.04
+      }
+    },
+    "laneDurationMedian": 20.4,
+    "seasons": [
+      "2023 (wet: INT/WET data only)",
+      "2024",
+      "2025"
+    ],
+    "totalSamples": 106
+  },
+  "monza": {
+    "displayName": "Monza",
+    "compounds": {
+      "MEDIUM": {
+        "medianPitAge": 19,
+        "pitAgeSamples": 45,
+        "degSlope": -0.071,
+        "degSamples": 56,
+        "paceOffset": 0.35
+      },
+      "HARD": {
+        "medianPitAge": 23.5,
+        "pitAgeSamples": 28,
+        "degSlope": -0.024,
+        "degSamples": 64,
+        "paceOffset": -0.2
+      },
+      "SOFT": {
+        "paceOffset": -1.46
+      }
+    },
+    "laneDurationMedian": 24.6,
+    "seasons": [
+      "2023",
+      "2024",
+      "2025"
+    ],
+    "totalSamples": 74
+  },
+  "singapore": {
+    "displayName": "Singapore",
+    "compounds": {
+      "HARD": {
+        "medianPitAge": 24,
+        "pitAgeSamples": 17,
+        "degSlope": 0,
+        "degSamples": 48,
+        "paceOffset": -0.33
+      },
+      "MEDIUM": {
+        "medianPitAge": 25,
+        "pitAgeSamples": 43,
+        "degSlope": -0.063,
+        "degSamples": 56,
+        "paceOffset": 0.21
+      },
+      "SOFT": {
+        "medianPitAge": 20.5,
+        "pitAgeSamples": 10,
+        "degSlope": -0.065,
+        "degSamples": 19,
+        "paceOffset": -1.36
+      }
+    },
+    "laneDurationMedian": 29.5,
+    "seasons": [
+      "2023",
+      "2024",
+      "2025"
+    ],
+    "totalSamples": 70
+  },
+  "suzuka": {
+    "displayName": "Suzuka",
+    "compounds": {
+      "MEDIUM": {
+        "medianPitAge": 18,
+        "pitAgeSamples": 47,
+        "degSlope": -0.001,
+        "degSamples": 54,
+        "paceOffset": 0.67
+      },
+      "HARD": {
+        "medianPitAge": 18,
+        "pitAgeSamples": 29,
+        "degSlope": 0.027,
+        "degSamples": 68,
+        "paceOffset": -0.52
+      },
+      "SOFT": {
+        "medianPitAge": 9,
+        "pitAgeSamples": 18,
+        "degSlope": 0.048,
+        "degSamples": 13,
+        "paceOffset": 0.5
+      }
+    },
+    "laneDurationMedian": 23.6,
+    "seasons": [
+      "2023",
+      "2024",
+      "2025"
+    ],
+    "totalSamples": 94
+  },
+  "lusail": {
+    "displayName": "Lusail",
+    "compounds": {
+      "MEDIUM": {
+        "medianPitAge": 20,
+        "pitAgeSamples": 88,
+        "degSlope": -0.086,
+        "degSamples": 82,
+        "paceOffset": 0.29
+      },
+      "HARD": {
+        "medianPitAge": 17,
+        "pitAgeSamples": 32,
+        "degSlope": -0.04,
+        "degSamples": 53,
+        "paceOffset": -1.32
+      },
+      "SOFT": {
+        "medianPitAge": 6,
+        "pitAgeSamples": 5,
+        "degSlope": -0.001,
+        "degSamples": 5,
+        "paceOffset": -0.19
+      }
+    },
+    "laneDurationMedian": 28.8,
+    "seasons": [
+      "2023",
+      "2024",
+      "2025"
+    ],
+    "totalSamples": 125
+  },
+  "austin": {
+    "displayName": "Austin",
+    "compounds": {
+      "MEDIUM": {
+        "medianPitAge": 21.5,
+        "pitAgeSamples": 56,
+        "degSlope": -0.04,
+        "degSamples": 68,
+        "paceOffset": 0.35
+      },
+      "HARD": {
+        "medianPitAge": 20,
+        "pitAgeSamples": 21,
+        "degSlope": -0.017,
+        "degSamples": 42,
+        "paceOffset": -0.27
+      },
+      "SOFT": {
+        "degSlope": -0.008,
+        "degSamples": 20,
+        "paceOffset": -1.02
+      }
+    },
+    "laneDurationMedian": 24.2,
+    "seasons": [
+      "2023",
+      "2024",
+      "2025"
+    ],
+    "totalSamples": 80
+  },
+  "mexicocity": {
+    "displayName": "Mexico City",
+    "compounds": {
+      "MEDIUM": {
+        "medianPitAge": 27,
+        "pitAgeSamples": 42,
+        "degSlope": -0.005,
+        "degSamples": 58,
+        "paceOffset": 0.32
+      },
+      "HARD": {
+        "medianPitAge": 14,
+        "pitAgeSamples": 27,
+        "degSlope": -0.011,
+        "degSamples": 41,
+        "paceOffset": -0.32
+      },
+      "SOFT": {
+        "medianPitAge": 27,
+        "pitAgeSamples": 13,
+        "degSlope": 0.014,
+        "degSamples": 27,
+        "paceOffset": -0.9
+      }
+    },
+    "laneDurationMedian": 22.7,
+    "seasons": [
+      "2023",
+      "2024",
+      "2025"
+    ],
+    "totalSamples": 82
+  },
+  "interlagos": {
+    "displayName": "Interlagos",
+    "compounds": {
+      "SOFT": {
+        "medianPitAge": 15.5,
+        "pitAgeSamples": 50,
+        "degSlope": 0.015,
+        "degSamples": 47,
+        "paceOffset": -0.01
+      },
+      "MEDIUM": {
+        "medianPitAge": 26,
+        "pitAgeSamples": 32,
+        "degSlope": 0.022,
+        "degSamples": 49,
+        "paceOffset": -0.08
+      },
+      "INTERMEDIATE": {
+        "medianPitAge": 27,
+        "pitAgeSamples": 27,
+        "degSlope": -0.144,
+        "degSamples": 33
+      },
+      "WET": {
+        "medianPitAge": 6,
+        "pitAgeSamples": 4
+      },
+      "HARD": {
+        "medianPitAge": 12,
+        "pitAgeSamples": 5,
+        "degSlope": -0.136,
+        "degSamples": 3,
+        "paceOffset": 0.72
+      }
+    },
+    "laneDurationMedian": 23.7,
+    "seasons": [
+      "2023",
+      "2024 (wet: INT/WET data only)",
+      "2025"
+    ],
+    "totalSamples": 118
+  },
+  "lasvegas": {
+    "displayName": "Las Vegas",
+    "compounds": {
+      "MEDIUM": {
+        "medianPitAge": 14.5,
+        "pitAgeSamples": 42,
+        "degSlope": -0.23,
+        "degSamples": 39,
+        "paceOffset": 0.87
+      },
+      "HARD": {
+        "medianPitAge": 20,
+        "pitAgeSamples": 38,
+        "degSlope": -0.053,
+        "degSamples": 84,
+        "paceOffset": -0.48
+      }
+    },
+    "laneDurationMedian": 21.6,
+    "seasons": [
+      "2023",
+      "2024",
+      "2025"
+    ],
+    "totalSamples": 83
+  },
+  "yasmarinacircuit": {
+    "displayName": "Yas Marina Circuit",
+    "compounds": {
+      "MEDIUM": {
+        "medianPitAge": 15,
+        "pitAgeSamples": 48,
+        "degSlope": -0.097,
+        "degSamples": 50,
+        "paceOffset": 0.76
+      },
+      "HARD": {
+        "medianPitAge": 24.5,
+        "pitAgeSamples": 38,
+        "degSlope": -0.008,
+        "degSamples": 80,
+        "paceOffset": -0.16
+      },
+      "SOFT": {
+        "medianPitAge": 8,
+        "pitAgeSamples": 4,
+        "paceOffset": 0.82
+      }
+    },
+    "laneDurationMedian": 22,
+    "seasons": [
+      "2023",
+      "2024",
+      "2025"
+    ],
+    "totalSamples": 90
+  },
+  "shanghai": {
+    "displayName": "Shanghai",
+    "compounds": {
+      "MEDIUM": {
+        "medianPitAge": 12,
+        "pitAgeSamples": 39,
+        "degSlope": -0.031,
+        "degSamples": 43,
+        "paceOffset": 1.09
+      },
+      "HARD": {
+        "medianPitAge": 15,
+        "pitAgeSamples": 20,
+        "degSlope": -0.046,
+        "degSamples": 46,
+        "paceOffset": -0.33
+      },
+      "SOFT": {
+        "medianPitAge": 9,
+        "pitAgeSamples": 5,
+        "degSlope": -0.184,
+        "degSamples": 4,
+        "paceOffset": 0.63
+      }
+    },
+    "laneDurationMedian": 22.8,
+    "seasons": [
+      "2024",
+      "2025"
+    ],
+    "totalSamples": 64
+  },
+  "imola": {
+    "displayName": "Imola",
+    "compounds": {
+      "MEDIUM": {
+        "medianPitAge": 20,
+        "pitAgeSamples": 33,
+        "degSlope": -0.034,
+        "degSamples": 36,
+        "paceOffset": 0.12
+      },
+      "HARD": {
+        "medianPitAge": 23,
+        "pitAgeSamples": 26,
+        "degSlope": 0,
+        "degSamples": 52,
+        "paceOffset": -0.19
+      }
+    },
+    "laneDurationMedian": 30.2,
+    "seasons": [
+      "2023",
+      "2024",
+      "2025"
+    ],
+    "totalSamples": 61
+  },
+  "_meta": {
+    "generatedAt": "2026-08-23T10:48:37.375Z",
+    "source": "openf1.org",
+    "years": [
+      2023,
+      2024,
+      2025
+    ]
+  }
+}

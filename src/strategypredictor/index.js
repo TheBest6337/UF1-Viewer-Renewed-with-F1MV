@@ -5,6 +5,7 @@ const loopspeed = 2000;
 const { logLap } = require("./strategy-log.js");
 const { state } = require("./state");
 const { config, getConfigurations, getDriverConfig, getCompoundLife } = require("./config");
+const { getPriorPitLoss } = require("./priors");
 const { apiRequests } = require("./api");
 const { computeAll, detectPitStops } = require("./compute");
 const { render } = require("./render");
@@ -33,6 +34,23 @@ async function run() {
             const pitLaneTimes = liveState.PitLaneTimeCollection;
             const carData = liveState.CarData || null;
             const sessionStatus = liveState.SessionStatus ? liveState.SessionStatus.Status : null;
+            const rcmRaw = liveState.RaceControlMessages ? liveState.RaceControlMessages.Messages : null;
+
+            // Race control: track pit entry open/closed so the predictor never tells
+            // anyone to pit into a closed pit lane. Messages accumulate over the
+            // session; only parse the new ones.
+            const rcmList = Array.isArray(rcmRaw) ? rcmRaw : rcmRaw ? Object.values(rcmRaw) : null;
+            if (rcmList && rcmList.length > state.rcmProcessedCount) {
+                for (let m = state.rcmProcessedCount; m < rcmList.length; m++) {
+                    const msg = rcmList[m];
+                    if (!msg) continue;
+                    const sub = msg.SubCategory || msg.Category;
+                    if (sub === "PitEntry") {
+                        state.pitLaneClosed = msg.Flag === "CLOSED";
+                    }
+                }
+                state.rcmProcessedCount = rcmList.length;
+            }
 
             if (lapCount) {
                 const wasSCVSC = state.lastTrackStatus === "4" || state.lastTrackStatus === "6";
@@ -48,6 +66,18 @@ async function run() {
 
             if (sessionInfo) {
                 state.sessionType = sessionInfo.Type;
+                const circuit = sessionInfo.Meeting && sessionInfo.Meeting.Circuit ? sessionInfo.Meeting.Circuit.ShortName : null;
+                if (circuit && state.circuitKey !== circuit) {
+                    state.circuitKey = circuit;
+                    // Seed pit loss from this circuit's historical median lane time;
+                    // live PitLaneTimeCollection observations blend over it below.
+                    const priorLoss = getPriorPitLoss();
+                    if (priorLoss) {
+                        state.priorPitLoss = priorLoss;
+                        state.avgPitLoss = priorLoss;
+                    }
+                    if (debug) console.log("circuit:", circuit, "prior pit loss:", priorLoss);
+                }
             }
 
             if (state.sessionType && state.sessionType !== "Race") {
@@ -150,7 +180,13 @@ async function run() {
                     return !isNaN(d) && d > 0;
                 });
                 if (validTimes.length > 0) {
-                    state.avgPitLoss = validTimes.reduce(function (s, pt) { return s + Number(pt.Duration); }, 0) / validTimes.length;
+                    // Blend the historical prior (weight of 4 observations) with what the
+                    // pit lane is actually doing today; live data dominates as stops accrue.
+                    const liveMean = validTimes.reduce(function (s, pt) { return s + Number(pt.Duration); }, 0) / validTimes.length;
+                    const prior = state.priorPitLoss;
+                    state.avgPitLoss = prior != null
+                        ? (4 * prior + validTimes.length * liveMean) / (4 + validTimes.length)
+                        : liveMean;
                 }
 
                 detectPitStops(pitLaneTimes.PitTimes, timingAppLines, currentLap);

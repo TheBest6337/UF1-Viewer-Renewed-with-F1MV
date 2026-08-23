@@ -41,11 +41,18 @@ function detectBattles(driverNum, timingDataLines, currentLap) {
         if (gapToAhead < 1.0) dirtyAirCount = 1;
     }
 
+    // One entry per LAP ("was in dirty air at any point during the lap"), not per poll —
+    // per-poll pushes made "3 of the last 5 laps" mean "3 of the last 5 polls" (~10s).
     if (!state.driverHistory[driverNum].dirtyAirHistory) state.driverHistory[driverNum].dirtyAirHistory = [];
     const daHistory = state.driverHistory[driverNum].dirtyAirHistory;
-    daHistory.push(dirtyAirCount > 0);
-    if (daHistory.length > 5) daHistory.shift();
-    const daInLast5 = daHistory.filter(function (v) { return v; }).length;
+    const daExisting = daHistory.find(function (e) { return e.lap === currentLap; });
+    if (daExisting) {
+        daExisting.inDirtyAir = daExisting.inDirtyAir || dirtyAirCount > 0;
+    } else {
+        daHistory.push({ lap: currentLap, inDirtyAir: dirtyAirCount > 0 });
+        if (daHistory.length > 5) daHistory.shift();
+    }
+    const daInLast5 = daHistory.filter(function (e) { return e.inDirtyAir; }).length;
     const dirtyAirThreshold = getDriverConfig("dirtyAirThreshold", 3);
     if (daInLast5 >= dirtyAirThreshold) dirtyAir = true;
 

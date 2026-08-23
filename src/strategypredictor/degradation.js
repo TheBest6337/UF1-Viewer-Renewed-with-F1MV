@@ -42,11 +42,18 @@ function calcSectorHealth(driverNum, timingData, currentLap) {
     // thresholds below and made GONE the de-facto default regardless of actual pace.
     const perSegmentScore = currentScore / segmentCount;
 
+    // One entry per LAP, updated in place as later polls of the same lap see more
+    // segments. Pushing per poll (the live loop hits each lap ~45 times) made this
+    // "8-lap" buffer hold about 6 seconds of data.
     const scores = state.driverHistory[driverNum].segmentScores;
-    scores.push({ lap: currentLap, score: perSegmentScore });
-
-    if (scores.length > 8) {
-        scores.shift();
+    const existingScore = scores.find(function (entry) { return entry.lap === currentLap; });
+    if (existingScore) {
+        existingScore.score = perSegmentScore;
+    } else {
+        scores.push({ lap: currentLap, score: perSegmentScore });
+        if (scores.length > 8) {
+            scores.shift();
+        }
     }
 
     const lapsWithData = scores.length;
@@ -108,8 +115,10 @@ function calcDegRate(driverNum, currentLap, sessionData) {
     const history = state.driverHistory[driverNum].laps;
     const alreadyRecorded = history.some(function (entry) { return entry.lap === currentLap; });
 
+    var newCleanLap = false;
     if (!alreadyRecorded && currentLap > 1 && !isInPit && !isOutLap && !isSCLap && lapTimeSec > 0) {
         history.push({ lap: currentLap, time: lapTimeSec, clean: true });
+        newCleanLap = true;
         if (history.length > 8) {
             history.shift();
         }
@@ -117,15 +126,38 @@ function calcDegRate(driverNum, currentLap, sessionData) {
 
     // Require more than the bare minimum of clean laps before trusting the regression -
     // a 3-point fit on noisy lap times is what made degRate (and the windows derived
-    // from it) flip sign from one lap to the next.
+    // from it) flip sign from one lap to the next. While the buffer is thin (start of
+    // stint, or wiped on SC exit), fall back to the surviving EMA instead of null so
+    // an SC doesn't blank the whole field's deg at once and sawtooth every window.
+    // Confidence ramps slowly: a 4-point fit is barely better than a guess (0.17),
+    // full trust only after ~9 clean laps.
     const cleanLaps = history.filter(function (entry) { return entry.clean; });
-    if (cleanLaps.length < 4) return null;
+    state.driverHistory[driverNum].degConfidence = Math.min(1, Math.max(0, (cleanLaps.length - 3) / 6));
+    if (cleanLaps.length < 4) {
+        return state.driverHistory[driverNum].degEma != null ? state.driverHistory[driverNum].degEma : null;
+    }
 
     const points = cleanLaps.map(function (entry) {
         return { x: entry.lap, y: entry.time };
     });
 
-    return linearRegression(points);
+    const rawSlope = linearRegression(points);
+    if (rawSlope === null) return state.driverHistory[driverNum].degEma != null ? state.driverHistory[driverNum].degEma : null;
+
+    // The 8-point OLS slope is noisy: a traffic-recovery sequence can fit to several
+    // seconds per lap of "improvement". Clamp to the physically plausible range and
+    // smooth with an EMA that advances once per new clean lap — never per 2s poll —
+    // so one bad fit cannot yank the pit window around.
+    const clamped = Math.min(0.5, Math.max(-0.3, rawSlope));
+    if (newCleanLap || state.driverHistory[driverNum].degEma == null) {
+        if (state.driverHistory[driverNum].degEma == null) {
+            state.driverHistory[driverNum].degEma = clamped;
+        } else {
+            state.driverHistory[driverNum].degEma = 0.3 * clamped + 0.7 * state.driverHistory[driverNum].degEma;
+        }
+    }
+
+    return state.driverHistory[driverNum].degEma;
 }
 
 function classifyPattern(driverNum) {

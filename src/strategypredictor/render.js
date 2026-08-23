@@ -174,6 +174,12 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
                 statusText = "FINISH ON TIRES";
                 statusClass = "ok";
                 windowText = "No stop needed";
+            } else if (windowEntry.respondTo) {
+                const rivalTla = driverListLines[windowEntry.respondTo.rival]
+                    ? driverListLines[windowEntry.respondTo.rival].Tla
+                    : windowEntry.respondTo.rival;
+                statusText = "RESPOND → " + rivalTla;
+                statusClass = "urgent";
             } else if (windowEntry.justPitted) {
                 statusText = "JUST PITTED";
                 statusClass = "ok";
@@ -185,9 +191,17 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
                 statusClass = "urgent";
                 if (windowEntry.tireAgeRatio > 0.85) statusText += " (old tires)";
             } else if (windowEntry.urgency === 1) {
-                const untilLap = windowEntry.minLap - currentLap;
-                statusText = "Imminent (" + untilLap + " lap" + (untilLap !== 1 ? "s" : "") + ")";
-                statusClass = "imminent";
+                if (currentLap > windowEntry.maxLap) {
+                    statusText = "OVERDUE (+" + (currentLap - windowEntry.maxLap) + ")";
+                    statusClass = "urgent";
+                } else if (currentLap >= windowEntry.minLap) {
+                    statusText = "WINDOW OPEN";
+                    statusClass = "imminent";
+                } else {
+                    const untilLap = windowEntry.minLap - currentLap;
+                    statusText = "Imminent (" + untilLap + " lap" + (untilLap !== 1 ? "s" : "") + ")";
+                    statusClass = "imminent";
+                }
                 if (windowEntry.tireAgeRatio > 0.85) statusText += " (old tires)";
             } else if (windowEntry.extended) {
                 statusText = "EXTENDED";
@@ -203,6 +217,20 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
             statusText = "NO DATA";
         }
 
+        // Never tell anyone to pit into a closed pit lane.
+        if (state.pitLaneClosed && windowEntry && (windowEntry.urgency >= 1 || windowEntry.respondTo)) {
+            statusText = "PIT LANE CLOSED";
+            statusClass = "urgent";
+        }
+
+        // Small confidence dot: green = mature own data, yellow = leaning on priors/
+        // fleet, red = mostly guesswork (fresh stint, post-SC).
+        var confDotHtml = "";
+        if (windowEntry && windowEntry.confidence != null && !windowEntry.noPitNeeded) {
+            const confColor = windowEntry.confidence >= 0.6 ? "#4caf50" : windowEntry.confidence >= 0.3 ? "#fdd835" : "#f44336";
+            confDotHtml = ' <span title="prediction confidence" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:' + confColor + ';vertical-align:middle"></span>';
+        }
+
         const teamHex = teamColour ? "#" + teamColour : "#5b5b5d";
 
         const posDisplay = isNaN(position) ? "--" : "P" + position;
@@ -210,8 +238,8 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
         var currentPct = totalLaps > 0 ? Math.min(100, (currentLap / totalLaps) * 100) : 0;
         var pitTimelineHtml = '<div class="pit-timeline"><div class="pit-elapsed" style="width:' + currentPct.toFixed(1) + '%"></div>';
         if (windowEntry) {
-            const pitStartPct = Math.min(100, (windowEntry.minLap / totalLaps) * 100);
-            const pitEndPct = Math.min(100, (windowEntry.maxLap / totalLaps) * 100);
+            const pitStartPct = Math.min(100, Math.max(0, (windowEntry.minLap / totalLaps) * 100));
+            const pitEndPct = Math.min(100, Math.max(0, (windowEntry.maxLap / totalLaps) * 100));
             const pitWidthPct = Math.max(0, pitEndPct - pitStartPct);
             const windowColor = windowEntry.urgency === 2 ? '#f44336' : windowEntry.urgency === 1 ? '#fdd835' : '#4caf50';
             pitTimelineHtml += '<div class="pit-window-bar" style="left:' + pitStartPct.toFixed(1) + '%;width:' + pitWidthPct.toFixed(1) + '%;background:' + windowColor + '"></div>';
@@ -227,7 +255,7 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
             '<td class="driver-cell"><span style="color:' + teamHex + '" class="tla">' + tla + '</span></td>' +
             '<td class="comp-cell"><span class="compound-badge" style="background:' + compoundColor + ';color:#000">' + shortCompound + '</span><span class="tire-bar"><span class="tire-bar-fill" style="width:' + agePercent.toFixed(1) + '%;background:' + tireBarColor + '"></span></span></td>' +
             '<td class="pit-window-cell"><span class="window-range">' + windowText + '</span></td>' +
-            '<td class="status-cell"><span class="' + statusClass + '">' + statusText + '</span>' + pitTimelineHtml + '</td>';
+            '<td class="status-cell"><span class="' + statusClass + '">' + statusText + '</span>' + confDotHtml + pitTimelineHtml + '</td>';
         tbody.appendChild(mainRow);
 
         const detailRow = document.createElement("tr");
@@ -322,8 +350,14 @@ function renderNormal(driverListLines, timingDataLines, timingAppLines, currentL
             if (entry.urgency === 2) {
                 hapStatus = "PIT NOW";
             } else if (windowEntry2) {
-                const untilLap = windowEntry2.minLap - currentLap;
-                hapStatus = "in " + Math.max(0, untilLap) + " lap" + (untilLap !== 1 ? "s" : "");
+                if (currentLap > windowEntry2.maxLap) {
+                    hapStatus = "overdue";
+                } else if (currentLap >= windowEntry2.minLap) {
+                    hapStatus = "window open";
+                } else {
+                    const untilLap = windowEntry2.minLap - currentLap;
+                    hapStatus = "in " + untilLap + " lap" + (untilLap !== 1 ? "s" : "");
+                }
             }
             const itemClass = entry.urgency === 2 ? "happening-item happening-urgent" : "happening-item happening-imminent";
             itemsHtml +=

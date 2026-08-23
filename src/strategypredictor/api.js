@@ -23,6 +23,7 @@ async function apiRequests() {
             "PitLaneTimeCollection",
             "CarData",
             "SessionStatus",
+            "RaceControlMessages",
         ]);
 
         return liveTimingState;
