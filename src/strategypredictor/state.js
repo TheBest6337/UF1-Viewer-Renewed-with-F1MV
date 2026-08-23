@@ -33,6 +33,9 @@ const state = {
     respondTo: {},
     pitLaneClosed: false,
     rcmProcessedCount: 0,
+    // Undercut cards the user closed manually (key: behind_ahead); pruned when the
+    // underlying duel tracking expires.
+    dismissedUndercuts: {},
     lastTrackStatus: "1",
     lastSCExitLap: -99,
     lastRainfall: 0,

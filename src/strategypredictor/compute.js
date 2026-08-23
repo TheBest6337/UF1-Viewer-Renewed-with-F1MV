@@ -158,18 +158,41 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
                     }
                 }
 
-                // Rival-pit response: this driver rejoins ~avgPitLoss behind their old
-                // position, so anyone ahead by less than that is now under undercut
-                // threat and should consider covering.
+                // Rival-pit response: only drivers this stop genuinely threatens.
+                // The undercut reach is the fresh-tyre gain the pitting car can make
+                // over a ~3-lap response horizon (a few seconds) — NOT the pit loss;
+                // and a driver can only "respond" if pitting now is a real option:
+                // tyres old enough, own window near, not fresh out of the pits.
                 const posToDriverAhead = {};
                 for (const entry of state.currentPositionOrder) posToDriverAhead[entry.pos] = entry.num;
                 for (var _p = myPos - 1; _p >= 1 && myPos - _p <= 8; _p--) {
                     const yNum = posToDriverAhead[_p];
                     if (!yNum) break;
                     const gapToY = computeGapBetween(_dn, yNum, timingDataLines, state.currentPositionOrder);
-                    if (gapToY === null || gapToY > state.avgPitLoss + 2) break;
+                    if (gapToY === null) break;
+
+                    const yWindow = state.predictedWindows[yNum];
+                    const yDeg = yWindow && yWindow.adjustedDeg > 0 ? Math.min(0.5, yWindow.adjustedDeg) : 0.1;
+                    const yAge = yWindow ? yWindow.stintAge || 0 : 10;
+                    const undercutReach = Math.min(8, Math.max(2.5, yDeg * yAge * 3));
+                    if (gapToY > undercutReach) break;
+
+                    if (state.justPittedDrivers[yNum]) continue;
+                    if (yWindow && (yWindow.justPitted || yWindow.noPitNeeded)) continue;
+                    if (yWindow && yWindow.minLap - currentLap > 8) continue;
+                    const yStints = getAllStints(timingAppLines, yNum);
+                    if (yStints && yStints.length > 0) {
+                        const yStint = yStints[yStints.length - 1];
+                        const yTrackAge = (yStint.TotalLaps || 0) - (yStint.StartLaps || 0);
+                        if (yTrackAge < 6) continue;
+                    }
+
                     state.respondTo[yNum] = { rival: _dn, setLap: currentLap, expiresLap: currentLap + 3 };
                 }
+
+                // A driver who enters the pit has responded (or made their own call) —
+                // stop telling them to.
+                delete state.respondTo[_dn];
             }
         } else if (!nowInPit && wasInPit) {
             const evts = state.pitEvents[_dn];
@@ -343,7 +366,8 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
                 (respond && respond.setLap === currentLap);
             var published = publishWindow(driverNum, window, currentLap, eventOverride);
             if (published) {
-                if (respond) published.respondTo = respond;
+                // A driver fresh out of the pits has nothing to respond to.
+                if (respond && !window.justPitted) published.respondTo = respond;
                 newPredictedWindows[driverNum] = published;
             }
         }
@@ -352,15 +376,23 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
     const newUndercutThreats = [];
     const activeUndercutPairs = new Set();
 
-    // Active undercuts: drivers who pitted with a captured target at pit entry
+    // Active undercuts: drivers who pitted with a captured target at pit entry.
     for (var _pdn in state.justPittedDrivers) {
         const entry = state.pitEntryTargets[_pdn];
         if (!entry) continue;
 
+        // The duel is over once the target covers by pitting too, and the user can
+        // dismiss a card they don't need.
+        var targetPitLap = typeof state.justPittedDrivers[entry.target] === "object"
+            ? state.justPittedDrivers[entry.target].lap
+            : state.justPittedDrivers[entry.target];
+        if (targetPitLap !== undefined && targetPitLap >= entry.lap) continue;
+        if (state.dismissedUndercuts[_pdn + "_" + entry.target]) continue;
+
         var currentGap = computeGapBetween(_pdn, entry.target, timingDataLines, state.currentPositionOrder);
         if (currentGap === null) currentGap = entry.gapAtEntry;
 
-        newUndercutThreats.push({ behind: _pdn, ahead: entry.target, gap: currentGap, type: "undercut_active" });
+        newUndercutThreats.push({ behind: _pdn, ahead: entry.target, gap: currentGap, gapAtEntry: entry.gapAtEntry, type: "undercut_active" });
 
         const histKey = _pdn + "_" + entry.target;
         if (!state.undercutHistory[histKey]) state.undercutHistory[histKey] = [];
@@ -410,6 +442,14 @@ function computeAll(driverListLines, timingDataLines, timingAppLines, timingStat
     );
     for (const key in state.undercutHistory) {
         if (!activeUCKeys.has(key)) delete state.undercutHistory[key];
+    }
+    // A dismissal lives as long as the duel it silences; once the underlying pit
+    // tracking expires, clear it so a future duel between the same cars shows again.
+    for (const key in state.dismissedUndercuts) {
+        const dismissedBehind = key.split("_")[0];
+        if (!state.justPittedDrivers[dismissedBehind] || !state.pitEntryTargets[dismissedBehind]) {
+            delete state.dismissedUndercuts[key];
+        }
     }
     state.degRates = newDegRates;
     state.compoundCounts = newCounts;

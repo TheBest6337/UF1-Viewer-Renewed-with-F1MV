@@ -102,14 +102,8 @@ tbody tr {
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-tbody tr.urgency-2 {
-    background: rgba(244, 67, 54, 0.18);
-}
-
-tbody tr.urgency-1 {
-    background: rgba(253, 216, 53, 0.12);
-}
-
+/* Urgency is shown only by the left edge marker — full-row background tints made
+   the table unreadable when many cars hit their window at once. */
 tbody tr td:first-child {
     border-left: 3px solid transparent;
 }
@@ -382,12 +376,37 @@ tbody td {
 .uc-meter-marker {
     position: absolute;
     top: -3px;
-    width: 2px;
+    width: 3px;
     height: 11px;
     background: #fdd835;
     border-radius: 1px;
     transform: translateX(-50%);
 }
+
+.uc-meter-marker--entry {
+    width: 2px;
+    background: rgba(255, 255, 255, 0.35);
+}
+
+.uc-close {
+    color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    font-size: 11px;
+    padding: 0 2px;
+    margin-left: 6px;
+}
+
+.uc-close:hover {
+    color: #fff;
+}
+
+.uc-progress {
+    font-size: 9px;
+    white-space: nowrap;
+}
+
+.uc-progress--gain { color: #4caf50; }
+.uc-progress--loss { color: #f44336; }
 
 .uc-meter-labels {
     display: flex;
@@ -422,9 +441,9 @@ tbody td {
 
 .uc-gap-value {
     color: #ffffff;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 700;
-    min-width: 36px;
+    min-width: 44px;
 }
 
 .uc-delta {

@@ -8,6 +8,12 @@ const { detectBattles } = require("./battles");
 const { calcTeamDeg, calcCompoundRefDeg } = require("./aggregation");
 const { handleSCVSC } = require("./safetycar");
 
+// Card dismiss buttons are plain inline onclick handlers (the table is rebuilt from
+// innerHTML every poll, so listeners can't persist).
+window.dismissUndercut = function (key) {
+    state.dismissedUndercuts[key] = true;
+};
+
 function buildUndercutCard(threat, driverListLines) {
     const histKey = threat.behind + "_" + threat.ahead;
     const history = state.undercutHistory[histKey] || [];
@@ -51,11 +57,27 @@ function buildUndercutCard(threat, driverListLines) {
     const METER_MAX = 8.0;
     const clampedGap = Math.min(Math.max(currentGap, 0), METER_MAX);
     const markerPct  = (clampedGap / METER_MAX * 100).toFixed(1);
+    // Ghost marker where the gap stood at pit entry, so the progress of the undercut
+    // is visible as the distance between the two markers.
+    var entryMarkerHtml = "";
+    var progressHtml = "";
+    if (threat.gapAtEntry != null) {
+        const entryPct = (Math.min(Math.max(threat.gapAtEntry, 0), METER_MAX) / METER_MAX * 100).toFixed(1);
+        entryMarkerHtml = '<div class="uc-meter-marker uc-meter-marker--entry" style="left:' + entryPct + '%" title="gap at pit entry"></div>';
+        const closed = threat.gapAtEntry - currentGap;
+        if (Math.abs(closed) >= 0.05) {
+            progressHtml = closed > 0
+                ? '<span class="uc-progress uc-progress--gain">closed ' + closed.toFixed(1) + 's since stop</span>'
+                : '<span class="uc-progress uc-progress--loss">lost ' + Math.abs(closed).toFixed(1) + 's since stop</span>';
+        }
+    }
+    const markerColor = currentGap <= 0 ? "#4caf50" : currentGap < 2.0 ? "#f44336" : "#fdd835";
     const meterHtml =
         '<div class="uc-position-meter">' +
             '<div class="uc-meter-track">' +
                 '<div class="uc-meter-zone-close"></div>' +
-                '<div class="uc-meter-marker" style="left:' + markerPct + '%"></div>' +
+                entryMarkerHtml +
+                '<div class="uc-meter-marker" style="left:' + markerPct + '%;background:' + markerColor + '"></div>' +
             '</div>' +
             '<div class="uc-meter-labels"><span>0s</span><span>8s+</span></div>' +
         '</div>';
@@ -81,12 +103,14 @@ function buildUndercutCard(threat, driverListLines) {
                     '<span class="uc-vs"> vs </span>' +
                     '<span style="color:' + aheadColor + '">' + aheadTla + '</span>' +
                 '</span>' +
+                '<span class="uc-close" onclick="dismissUndercut(\'' + histKey + '\')" title="dismiss">✕</span>' +
             '</div>' +
             meterHtml +
             '<div class="uc-bottom-row">' +
                 sparkHtml +
                 '<span class="uc-gap-value">' + currentGap.toFixed(2) + 's</span>' +
                 deltaHtml +
+                progressHtml +
                 '<span class="' + statusClass + '">' + statusLabel + '</span>' +
             '</div>' +
         '</div>'
